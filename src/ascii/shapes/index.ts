@@ -32,6 +32,7 @@ export type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions, ShapeRegistry 
 export const shapeRegistry: ShapeRegistry = new Map<AsciiNodeShape, ShapeRenderer>([
   // Core shapes
   ['rectangle', rectangleRenderer],
+  ['service', rectangleRenderer],
   ['rounded', roundedRenderer],
   ['diamond', diamondRenderer],
   ['stadium', stadiumRenderer],

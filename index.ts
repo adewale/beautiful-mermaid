@@ -101,6 +101,7 @@ async function generateHtml(): Promise<string> {
 
   const categoryBadgeColors: Record<string, string> = {
     Flowchart: '#3b82f6',
+    Architecture: '#0ea5e9',
     State: '#8b5cf6',
     Sequence: '#10b981',
     Class: '#f59e0b',
@@ -112,6 +113,7 @@ async function generateHtml(): Promise<string> {
 
   // Map category names to the title prefixes they use, so we can strip duplicates in the ToC
   const categoryPrefixes: Record<string, string> = {
+    'Architecture': 'Architecture: ',
     'State': 'State: ',
     'Sequence': 'Sequence: ',
     'Class': 'Class: ',
@@ -264,7 +266,7 @@ async function generateHtml(): Promise<string> {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="theme-color-meta" content="#f9f9fa" />
   <title>Beautiful Mermaid — Mermaid Rendering, Made Beautiful</title>
-  <meta name="description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Sequence, Class, and ER diagrams." />
+  <meta name="description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Architecture, Sequence, Class, ER, and XY diagrams." />
   <link rel="icon" type="image/svg+xml" href="/mermaid/favicon.svg" />
   <link rel="icon" type="image/x-icon" href="/mermaid/favicon.ico" />
   <link rel="apple-touch-icon" href="/mermaid/apple-touch-icon.png" />

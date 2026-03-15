@@ -37,7 +37,7 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 
 ## Features
 
-- **8 diagram types** — Flowcharts, State, Sequence, Class, ER, Timeline, User Journey, and XY Charts (bar, line, combined)
+- **9 diagram types** — Flowcharts, State, Architecture, Sequence, Class, ER, Timeline, User Journey, and XY Charts (bar, line, combined)
 - **Dual output** — SVG for rich UIs, ASCII/Unicode for terminals
 - **Synchronous rendering** — No async, no flash. Works with React `useMemo()`
 - **15 built-in themes** — And dead simple to add your own
@@ -308,6 +308,19 @@ stateDiagram-v2
   Idle --> Processing: start
   Processing --> Complete: done
   Complete --> [*]
+```
+
+### Architecture Diagrams
+
+Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
+
+```
+architecture-beta
+  group edge(cloud)[Edge]
+  group data(cloud)[Data]
+  service api(server)[API] in edge
+  service db(database)[Primary DB] in data
+  api:R --> L:db
 ```
 
 ### Sequence Diagrams
@@ -628,7 +641,7 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
 
-**Timeline + Journey + XY Charts:** Diagrams starting with `timeline`, `journey`, `xychart`, or `xychart-beta` are auto-detected — no separate function needed. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
+**Auto-detection:** Supported diagram families are routed from the header line automatically, including `architecture-beta`, `timeline`, `journey`, `sequenceDiagram`, `classDiagram`, `erDiagram`, and `xychart-beta`. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
 
 ### `renderMermaidSVGAsync(text, options?): Promise<string>`
 

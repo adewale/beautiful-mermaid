@@ -350,6 +350,87 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  ARCHITECTURE DIAGRAMS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Architecture: Edge Platform',
+    category: 'Architecture',
+    description: 'Nested groups, service cards, and storage links for a regional edge platform.',
+    source: `architecture-beta
+  group region(cloud)[EU West]
+  group edge(server)[Edge Layer] in region
+  group core(cloud)[Core Services] in region
+  service ingress(internet)[Global CDN] in edge
+  service gateway(server)[API Gateway] in edge
+  service auth(server)[Auth Service] in core
+  service billing(server)[Billing Service] in core
+  service ledger(database)[Ledger] in core
+  ingress:R --> L:gateway
+  gateway:B --> T:auth
+  gateway:R --> L:billing
+  billing:B -[stores invoices]-> T:ledger
+  auth:B -[reads session]-> T:ledger`,
+    options: {
+      bg: '#0f172a',
+      fg: '#e2e8f0',
+      line: '#475569',
+      accent: '#38bdf8',
+      muted: '#94a3b8',
+      surface: '#111827',
+      border: '#334155',
+    },
+  },
+  {
+    title: 'Architecture: Event Spine',
+    category: 'Architecture',
+    description: 'Boundary-aware edges, a junction fan-out, and data services separated into zones.',
+    source: `architecture-beta
+  group app(cloud)[Application Zone]
+  group data(cloud)[Data Zone]
+  service api(server)[Public API] in app
+  service workers(server)[Async Workers] in app
+  junction bus in app
+  service cache(disk)[Hot Cache] in data
+  service stream(database)[Event Store] in data
+  api:B --> T:bus
+  bus:B -[fans out]-> T:workers
+  api:B -[reads profiles]-> T:cache
+  workers:B -[persists events]-> T:stream
+  api{group}:B -[private link]-> T:stream{group}`,
+  },
+  {
+    title: 'Architecture: Regional Failover',
+    category: 'Architecture',
+    description: 'Two regions with replicated data paths and warm standby ingress.',
+    source: `architecture-beta
+  group primary(cloud)[Primary Region]
+  group standby(cloud)[Standby Region]
+  service edge1(server)[Ingress] in primary
+  service app1(server)[App Cluster] in primary
+  service db1(database)[Primary DB] in primary
+  service edge2(server)[Warm Ingress] in standby
+  service app2(server)[Warm App] in standby
+  service db2(database)[Replica DB] in standby
+  service wan(internet)[Internet]
+  wan:R --> L:edge1
+  edge1:B --> T:app1
+  app1:B --> T:db1
+  edge2:B --> T:app2
+  app2:B --> T:db2
+  db1{group}:B -[streams replica]-> T:db2{group}`,
+    options: {
+      bg: '#fffaf0',
+      fg: '#3f2d16',
+      line: '#8b5e34',
+      accent: '#d97706',
+      muted: '#8c6a43',
+      surface: '#fef3c7',
+      border: '#d6b37b',
+    },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  STATE DIAGRAMS
   // ══════════════════════════════════════════════════════════════════════════
 

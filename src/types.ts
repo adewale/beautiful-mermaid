@@ -28,6 +28,7 @@ export interface MermaidNode {
 
 export type NodeShape =
   | 'rectangle'
+  | 'service'
   | 'rounded'
   | 'diamond'
   | 'stadium'

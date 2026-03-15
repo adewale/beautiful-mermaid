@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'bun:test'
+import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
+
+describe('parseArchitectureDiagram', () => {
+  it('parses groups, services, junctions, and labeled edges', () => {
+    const diagram = parseArchitectureDiagram(`architecture-beta
+      group edge(cloud)[Edge]
+      group app(server)[Application]
+      service api(server)[Public API] in app
+      junction q in app
+      service db(database)[Primary DB]
+      api:R --> L:db
+      api:B -[async]-> T:q`)
+
+    expect(diagram.groups).toHaveLength(2)
+    expect(diagram.services).toHaveLength(2)
+    expect(diagram.junctions).toHaveLength(1)
+    expect(diagram.edges).toHaveLength(2)
+
+    expect(diagram.groups[1]!.children).toEqual([
+      { kind: 'service', id: 'api' },
+      { kind: 'junction', id: 'q' },
+    ])
+
+    expect(diagram.edges[1]).toEqual({
+      source: { id: 'api', side: 'B', boundary: 'item' },
+      target: { id: 'q', side: 'T', boundary: 'item' },
+      label: 'async',
+      hasArrowStart: false,
+      hasArrowEnd: true,
+    })
+  })
+
+  it('parses service group-boundary endpoints', () => {
+    const diagram = parseArchitectureDiagram(`architecture-beta
+      group storage(cloud)[Storage]
+      service db(database)[Database] in storage
+      service cache(disk)[Cache]
+      db{group}:R -[replicates]-> L:cache`)
+
+    expect(diagram.edges[0]!.source.boundary).toBe('group')
+    expect(diagram.edges[0]!.source.id).toBe('db')
+    expect(diagram.edges[0]!.label).toBe('replicates')
+  })
+
+  it('preserves spaces inside edge labels', () => {
+    const diagram = parseArchitectureDiagram(`architecture-beta
+      service api(server)[API]
+      service db(database)[Database]
+      api:R -[reads from]-> L:db`)
+
+    expect(diagram.edges[0]!.label).toBe('reads from')
+  })
+
+  it('rejects group-boundary syntax on root services', () => {
+    expect(() => parseArchitectureDiagram(`architecture-beta
+      service db(database)[Database]
+      service api(server)[API]
+      db{group}:R --> L:api`)).toThrow('is not inside a group')
+  })
+
+  it('converts architecture diagrams into graph layout input', () => {
+    const graph = architectureToMermaidGraph(parseArchitectureDiagram(`architecture-beta
+      group platform(cloud)[Platform]
+      service gateway(server)[Gateway] in platform
+      service db(database)[Database]
+      gateway:R --> L:db`))
+
+    expect(graph.nodes.get('gateway')!.shape).toBe('service')
+    expect(graph.nodes.get('db')!.shape).toBe('service')
+    expect(graph.subgraphs[0]!.id).toBe('platform')
+    expect(graph.edges[0]!.source).toBe('gateway')
+    expect(graph.direction).toBe('LR')
+  })
+})

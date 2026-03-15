@@ -346,6 +346,8 @@ function renderNodeShape(node: PositionedNode): string {
   const sw = escapeAttr(inlineStyle?.['stroke-width'] ?? String(STROKE_WIDTHS.innerBox))
 
   switch (shape) {
+    case 'service':
+      return renderRect(x, y, width, height, fill, stroke, sw)
     case 'diamond':
       return renderDiamond(x, y, width, height, fill, stroke, sw)
     case 'rounded':

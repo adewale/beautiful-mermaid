@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'bun:test'
+import { renderMermaidSVG } from '../index.ts'
+
+describe('renderMermaidSVG – architecture diagrams', () => {
+  it('renders architecture services, groups, and junctions with semantic classes', () => {
+    const svg = renderMermaidSVG(`architecture-beta
+      group app(cloud)[Application]
+      service api(server)[Public API] in app
+      junction q in app
+      service db(database)[Primary DB]
+      api:R --> L:db
+      api:B --> T:q`)
+
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('class="architecture-group"')
+    expect(svg).toContain('class="architecture-service"')
+    expect(svg).toContain('class="architecture-junction"')
+    expect(svg).toContain('data-id="api"')
+    expect(svg).toContain('Public API')
+    expect(svg).toContain('Primary DB')
+  })
+
+  it('renders group-boundary edges and edge labels', () => {
+    const svg = renderMermaidSVG(`architecture-beta
+      group storage(cloud)[Storage]
+      group analytics(cloud)[Analytics]
+      service db(database)[Database] in storage
+      service warehouse(database)[Warehouse] in analytics
+      db{group}:R -[replicates]-> L:warehouse`)
+
+    expect(svg).toContain('data-from-boundary="group"')
+    expect(svg).toContain('data-label="replicates"')
+    expect(svg).toContain('marker-end="url(#architecture-arrow-end)"')
+    expect(svg).toContain('Storage')
+    expect(svg).toContain('Analytics')
+  })
+
+  it('supports CSS variable color inputs without invalid output', () => {
+    const svg = renderMermaidSVG(`architecture-beta
+      group edge(cloud)[Edge]
+      service api(server)[API] in edge`, {
+      bg: 'var(--background)',
+      fg: 'var(--foreground)',
+      accent: 'var(--accent)',
+    })
+
+    expect(svg).toContain('--bg:var(--background)')
+    expect(svg).not.toContain('NaN')
+  })
+})

@@ -70,6 +70,11 @@ function estimateNodeSize(id: string, label: string, shape: string): { width: nu
   let width = metrics.width + NODE_PADDING.horizontal * 2
   let height = metrics.height + NODE_PADDING.vertical * 2
 
+  if (shape === 'service') {
+    width = Math.max(width + 34, 120)
+    height = Math.max(height + 6, 48)
+  }
+
   if (shape === 'diamond') {
     const side = Math.max(width, height) + NODE_PADDING.diamondExtra
     width = side

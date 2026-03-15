@@ -44,6 +44,10 @@ export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
     unicode: { tl: '┌', tr: '┐', bl: '└', br: '┘' },
     ascii: { tl: '+', tr: '+', bl: '+', br: '+' },
   },
+  service: {
+    unicode: { tl: '┌', tr: '┐', bl: '└', br: '┘' },
+    ascii: { tl: '+', tr: '+', bl: '+', br: '+' },
+  },
   rounded: {
     unicode: { tl: '╭', tr: '╮', bl: '╰', br: '╯' },
     ascii: { tl: '.', tr: '.', bl: "'", br: "'" },

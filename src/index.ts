@@ -7,6 +7,7 @@
 // Supported diagram types:
 //   - Flowcharts (graph TD / flowchart LR)
 //   - State diagrams (stateDiagram-v2)
+//   - Architecture diagrams (architecture-beta)
 //   - Sequence diagrams (sequenceDiagram)
 //   - Class diagrams (classDiagram)
 //   - ER diagrams (erDiagram)
@@ -29,6 +30,7 @@ export { parseMermaid } from './parser.ts'
 export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
 export type { MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig } from './mermaid-source.ts'
+export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
 
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
@@ -58,12 +60,16 @@ import { renderJourneySvg } from './journey/renderer.ts'
 import { parseXYChart } from './xychart/parser.ts'
 import { layoutXYChart } from './xychart/layout.ts'
 import { renderXYChartSvg } from './xychart/renderer.ts'
+import { parseArchitectureDiagram } from './architecture/parser.ts'
+import { layoutArchitectureDiagram } from './architecture/layout.ts'
+import { renderArchitectureSvg } from './architecture/renderer.ts'
 
 /**
  * Detect the diagram type from the mermaid source text.
  * Returns the type keyword used for routing to the correct pipeline.
  */
-function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
+function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
+  if (/^architecture-beta\s*$/.test(firstLine)) return 'architecture'
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
   if (/^timeline\s*$/.test(firstLine)) return 'timeline'
   if (/^journey\s*$/.test(firstLine)) return 'journey'
@@ -177,6 +183,11 @@ export function renderMermaidSVG(
   const lines = normalizedSource.lines
 
   switch (diagramType) {
+    case 'architecture': {
+      const diagram = parseArchitectureDiagram(text)
+      const positioned = layoutArchitectureDiagram(diagram, options)
+      return renderArchitectureSvg(positioned, colors, font, transparent)
+    }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)
       const positioned = layoutSequenceDiagram(diagram, options)
