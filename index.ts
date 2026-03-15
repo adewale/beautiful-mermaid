@@ -105,6 +105,7 @@ async function generateHtml(): Promise<string> {
     Sequence: '#10b981',
     Class: '#f59e0b',
     ER: '#ef4444',
+    Journey: '#14b8a6',
     'XY Chart': '#f97316',
     'Theme Showcase': '#06b6d4',
   }
@@ -115,6 +116,7 @@ async function generateHtml(): Promise<string> {
     'Sequence': 'Sequence: ',
     'Class': 'Class: ',
     'ER': 'ER: ',
+    'Journey': 'Journey: ',
     'XY Chart': 'XY: ',
     'Theme Showcase': 'Theme: ',
   }

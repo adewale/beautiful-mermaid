@@ -37,7 +37,7 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 
 ## Features
 
-- **7 diagram types** — Flowcharts, State, Sequence, Class, ER, Timeline, and XY Charts (bar, line, combined)
+- **8 diagram types** — Flowcharts, State, Sequence, Class, ER, Timeline, User Journey, and XY Charts (bar, line, combined)
 - **Dual output** — SVG for rich UIs, ASCII/Unicode for terminals
 - **Synchronous rendering** — No async, no flash. Works with React `useMemo()`
 - **15 built-in themes** — And dead simple to add your own
@@ -370,6 +370,37 @@ timeline
   2006 : Twitter
 ```
 
+### User Journey Diagrams
+
+Scored user tasks grouped into sections — using Mermaid's `journey` syntax.
+Supports Mermaid accessibility directives `accTitle:` and `accDescr:` as SVG
+metadata, including multiline `accDescr { ... }` blocks. Design note:
+[`journey-design.md`](./journey-design.md).
+
+```
+journey
+  title My working day
+  section Go to work
+    Make tea: 5: Me
+    Go upstairs: 3: Me
+  section Workday
+    Do work: 1: Me, Cat
+```
+
+Official Mermaid docs example:
+
+```
+journey
+  title My working day
+  section Go to work
+    Make tea: 5: Me
+    Go upstairs: 3: Me
+    Do work: 1: Me, Cat
+  section Go home
+    Go downstairs: 5: Me
+    Sit down: 3: Me
+```
+
 ### Inline Edge Styling
 
 Use `linkStyle` to override edge colors and stroke widths — just like [Mermaid's linkStyle](https://mermaid.js.org/syntax/flowchart.html#styling-links):
@@ -597,7 +628,7 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
 
-**Timeline + XY Charts:** Diagrams starting with `timeline`, `xychart`, or `xychart-beta` are auto-detected — no separate function needed. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
+**Timeline + Journey + XY Charts:** Diagrams starting with `timeline`, `journey`, `xychart`, or `xychart-beta` are auto-detected — no separate function needed. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
 
 ### `renderMermaidSVGAsync(text, options?): Promise<string>`
 

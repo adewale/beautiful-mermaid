@@ -735,3 +735,30 @@ function unescapeQuotedString(valueText: string): string {
     return valueText.slice(1, -1)
   }
 }
+
+export type RoutedDiagramType = 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart'
+
+/**
+ * Return the logical Mermaid lines after frontmatter/init/comment normalization.
+ * This is a thin wrapper around the richer source preprocessing used by the
+ * public SVG and ASCII entry points.
+ */
+export function preprocessMermaidLines(text: string): string[] {
+  return preprocessMermaidSource(text).lines
+}
+
+/**
+ * Detect the routed Mermaid diagram family from the first logical line.
+ */
+export function detectDiagramType(text: string): RoutedDiagramType {
+  const firstLine = preprocessMermaidLines(text)[0]?.split(';')[0]?.trim().toLowerCase() ?? ''
+
+  if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
+  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
+  if (/^journey\s*$/.test(firstLine)) return 'journey'
+  if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
+  if (/^classdiagram\s*$/.test(firstLine)) return 'class'
+  if (/^erdiagram\s*$/.test(firstLine)) return 'er'
+
+  return 'flowchart'
+}
