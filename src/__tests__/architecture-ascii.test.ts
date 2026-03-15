@@ -15,7 +15,12 @@ describe('renderMermaidASCII – architecture diagrams', () => {
   })
 
   it('renders architecture diagrams in unicode mode and skips leading comments', () => {
-    const ascii = renderMermaidASCII(`%% generated sample
+    const ascii = renderMermaidASCII(`---
+config:
+  theme: neutral
+---
+      %%{init: { "theme": "neutral" }}%%
+      %% generated sample
       architecture-beta
       group app(cloud)[Application]
       service api(server)[API] in app

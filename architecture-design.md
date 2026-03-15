@@ -42,5 +42,5 @@ Architecture-specific work happens after shared placement:
 ## Compatibility Notes
 
 - Mermaid's current public header for this diagram family is `architecture-beta`, so that is the supported header.
-- Leading Mermaid comments (`%% ...`) before the header are ignored by the public SVG and ASCII entrypoints.
-- Mermaid frontmatter / init directives before the header are not parsed for architecture diagrams yet. If architecture diagrams need the same preprocessing as xychart or other future types, add that as a shared source-preprocessing step instead of teaching the architecture parser a one-off path.
+- Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are ignored by the public SVG and ASCII entrypoints and by `parseArchitectureDiagram()`.
+- Architecture diagrams do not currently interpret frontmatter or init config values; they are accepted as source wrappers so Mermaid-authored input parses cleanly without forcing architecture-specific config semantics.

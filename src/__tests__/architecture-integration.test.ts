@@ -49,7 +49,12 @@ describe('renderMermaidSVG – architecture diagrams', () => {
   })
 
   it('skips leading comments and escapes multiline labels safely', () => {
-    const svg = renderMermaidSVG(`%% generated sample
+    const svg = renderMermaidSVG(`---
+config:
+  theme: base
+---
+      %%{init: { "theme": "neutral" }}%%
+      %% generated sample
       architecture-beta
       group edge(cloud)[Edge<br/>Layer]
       service api(server)[API & <Gateway>] in edge

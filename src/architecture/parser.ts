@@ -1,5 +1,6 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { preprocessMermaidSource } from '../mermaid-source.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -33,10 +34,7 @@ const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 
 export function parseArchitectureDiagram(text: string): ArchitectureDiagram {
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith('%%'))
+  const { lines } = preprocessMermaidSource(text)
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
