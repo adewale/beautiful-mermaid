@@ -1197,6 +1197,32 @@ export const samples: Sample[] = [
   2005 : YouTube
   2006 : Twitter`,
   },
+  {
+    title: 'Timeline: Product Delivery Plan',
+    category: 'Timeline',
+    description: 'Sectioned timeline with continuation events, matching the more advanced Mermaid Timeline examples.',
+    source: `timeline
+  title Product Delivery Plan
+  section Foundation
+  2022 Q4 : Research
+  2023 Q1 : Prototype
+  section Launch
+  2023 Q3 : Private beta
+          : Design system rollout
+  2024 Q1 : Public launch`,
+  },
+  {
+    title: 'Timeline: Multiline Platform Milestones',
+    category: 'Timeline',
+    description: 'Exercises <br> labels in the title, section labels, periods, and event cards.',
+    source: `timeline
+  title Platform<br>Milestones
+  section Core<br>platform
+  2024<br>Q1 : Soft<br>launch
+  2024<br>Q2 : Mobile<br>support
+  section Adoption
+  2024<br>Q4 : Team<br>rollout`,
+  },
 
   // ══════════════════════════════════════════════════════════════════════════
   //  XY CHARTS (xychart-beta)
