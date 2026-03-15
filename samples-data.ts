@@ -1231,8 +1231,10 @@ export const samples: Sample[] = [
   {
     title: 'Journey: My Working Day',
     category: 'Journey',
-    description: 'Scored tasks grouped into sections with actor tags.',
+    description: 'Scored tasks grouped into sections with actor tags and accessibility metadata.',
     source: `journey
+    accTitle: My working day journey
+    accDescr: A compact user journey showing commute and workday tasks
     title My working day
     section Go to work
       Make tea: 5: Me

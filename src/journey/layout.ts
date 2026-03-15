@@ -264,6 +264,8 @@ export function layoutJourneyDiagram(
           y: JY.paddingY + titleMetrics!.height / 2,
         }
       : undefined,
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
     sections,
   }
 }

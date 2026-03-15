@@ -10,6 +10,7 @@ import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 //   - crisp section frames consistent with timeline / class / ER styling
 //   - stacked task cards with an accent rail
 //   - compact score meters and actor pills for readable metadata
+//   - root SVG accessibility metadata sourced from Mermaid accTitle/accDescr
 // ============================================================================
 
 const JY = {
@@ -35,7 +36,15 @@ export function renderJourneySvg(
 ): string {
   const parts: string[] = []
 
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
+  const accessibility = buildJourneyAccessibility(diagram)
+
+  parts.push(openJourneySvgTag(diagram, colors, transparent, accessibility))
+  if (accessibility.title) {
+    parts.push(`<title id="journey-a11y-title">${escapeXml(accessibility.title)}</title>`)
+  }
+  if (accessibility.description) {
+    parts.push(`<desc id="journey-a11y-desc">${escapeXml(accessibility.description)}</desc>`)
+  }
   parts.push(buildStyleBlock(font, false))
   parts.push(journeyStyles())
 
@@ -65,6 +74,30 @@ export function renderJourneySvg(
 
   parts.push('</svg>')
   return parts.join('\n')
+}
+
+function buildJourneyAccessibility(diagram: PositionedJourneyDiagram): {
+  title?: string
+  description?: string
+} {
+  return {
+    title: diagram.accessibilityTitle ?? diagram.title?.text,
+    description: diagram.accessibilityDescription,
+  }
+}
+
+function openJourneySvgTag(
+  diagram: PositionedJourneyDiagram,
+  colors: DiagramColors,
+  transparent: boolean,
+  accessibility: { title?: string; description?: string },
+): string {
+  const attrs = ['role="img"', 'aria-roledescription="user journey"']
+  if (accessibility.title) attrs.push('aria-labelledby="journey-a11y-title"')
+  if (accessibility.description) attrs.push('aria-describedby="journey-a11y-desc"')
+
+  return svgOpenTag(diagram.width, diagram.height, colors, transparent)
+    .replace('>', ` ${attrs.join(' ')}>`)
 }
 
 function journeyStyles(): string {

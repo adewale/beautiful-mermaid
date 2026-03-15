@@ -60,6 +60,29 @@ describe('parseJourneyDiagram', () => {
     expect(diagram.sections[0]!.tasks[0]!.actors).toEqual(['Me / Team'])
   })
 
+  it('parses accessibility title and single-line description', () => {
+    const diagram = parse(`journey
+      accTitle: Working day accessibility title
+      accDescr: A compact summary of the working day journey
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(diagram.accessibilityTitle).toBe('Working day accessibility title')
+    expect(diagram.accessibilityDescription).toBe('A compact summary of the working day journey')
+  })
+
+  it('parses multiline accDescr blocks', () => {
+    const diagram = parse(`journey
+      accDescr {
+        A compact summary
+        of the working day journey
+      }
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(diagram.accessibilityDescription).toBe('A compact summary\nof the working day journey')
+  })
+
   it('normalizes quoted labels the same way Mermaid labels are normalized elsewhere', () => {
     const diagram = parse(`journey
       title "My working day"
@@ -102,6 +125,14 @@ describe('parseJourneyDiagram', () => {
     expect(() => parse(`journey
       section Work
       Do work: 6: Me`)).toThrow('invalid score 6')
+  })
+
+  it('throws when an accDescr block is not closed', () => {
+    expect(() => parse(`journey
+      accDescr {
+        Missing closing brace
+      section Work
+      Do work: 3: Me`)).toThrow('missing a closing "}"')
   })
 
   it('throws when the diagram has no tasks', () => {

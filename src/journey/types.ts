@@ -9,6 +9,10 @@
 export interface JourneyDiagram {
   /** Optional diagram title */
   title?: string
+  /** Optional accessibility title from Mermaid accTitle */
+  accessibilityTitle?: string
+  /** Optional accessibility description from Mermaid accDescr */
+  accessibilityDescription?: string
   /** Ordered sections in input order */
   sections: JourneySection[]
 }
@@ -37,6 +41,8 @@ export interface PositionedJourneyDiagram {
   width: number
   height: number
   title?: PositionedJourneyTitle
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   sections: PositionedJourneySection[]
 }
 

@@ -9,6 +9,9 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 // Supported syntax:
 //   journey
 //   title My working day
+//   accTitle: My working day accessibility title
+//   accDescr: Short accessibility description
+//   accDescr { Multi-line accessibility description }
 //   section Go to work
 //   Make tea: 5: Me
 //   Do work: 1: Me, Cat
@@ -48,7 +51,26 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
 
     if (/^journey\b/i.test(line)) continue
 
-    if (/^acc(?:Title|Descr)\b/i.test(line)) continue
+    const accTitle = parseAccessibilityLine(line, 'accTitle')
+    if (accTitle !== undefined) {
+      diagram.accessibilityTitle = accTitle
+      continue
+    }
+
+    const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
+    if (accDescrStart) {
+      const initial = accDescrStart[1] ?? ''
+      const parsed = collectAccessibilityBlock(initial, lines, i)
+      diagram.accessibilityDescription = normalizeBrTags(parsed.text)
+      i = parsed.nextIndex
+      continue
+    }
+
+    const accDescr = parseAccessibilityLine(line, 'accDescr')
+    if (accDescr !== undefined) {
+      diagram.accessibilityDescription = accDescr
+      continue
+    }
 
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
@@ -107,4 +129,44 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
   }
 
   return diagram
+}
+
+function parseAccessibilityLine(
+  line: string,
+  directive: 'accTitle' | 'accDescr',
+): string | undefined {
+  const match = line.match(new RegExp(`^${directive}\\s*:?[ \\t]+(.+)$`, 'i'))
+  return match ? normalizeBrTags(match[1]!.trim()) : undefined
+}
+
+function collectAccessibilityBlock(
+  initial: string,
+  lines: string[],
+  startIndex: number,
+): { text: string; nextIndex: number } {
+  const initialEnd = initial.indexOf('}')
+  if (initialEnd !== -1) {
+    return {
+      text: initial.slice(0, initialEnd).trim(),
+      nextIndex: startIndex,
+    }
+  }
+
+  const parts = [initial.trim()].filter(Boolean)
+
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    const line = lines[i]!
+    const end = line.indexOf('}')
+    if (end !== -1) {
+      const beforeBrace = line.slice(0, end).trim()
+      if (beforeBrace) parts.push(beforeBrace)
+      return {
+        text: parts.join('\n'),
+        nextIndex: i,
+      }
+    }
+    parts.push(line)
+  }
+
+  throw new Error('Journey accDescr block is missing a closing "}"')
 }

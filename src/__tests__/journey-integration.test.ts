@@ -42,6 +42,35 @@ describe('renderMermaidSVG – journey diagrams', () => {
     expect(svg).toContain('Make tea')
   })
 
+  it('surfaces accTitle and accDescr as SVG accessibility metadata', () => {
+    const svg = render(`journey
+      accTitle: Working day accessibility title
+      accDescr {
+        A compact summary
+        of the working day journey
+      }
+      title My working day
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(svg).toContain('role="img"')
+    expect(svg).toContain('aria-roledescription="user journey"')
+    expect(svg).toContain('aria-labelledby="journey-a11y-title"')
+    expect(svg).toContain('aria-describedby="journey-a11y-desc"')
+    expect(svg).toContain('<title id="journey-a11y-title">Working day accessibility title</title>')
+    expect(svg).toContain('<desc id="journey-a11y-desc">A compact summary')
+  })
+
+  it('falls back to the visible title for accessibility metadata when accTitle is absent', () => {
+    const svg = render(`journey
+      title My working day
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(svg).toContain('aria-labelledby="journey-a11y-title"')
+    expect(svg).toContain('<title id="journey-a11y-title">My working day</title>')
+  })
+
   it('emits semantic data attributes for section, score, and actors', () => {
     const svg = render(`journey
       section Go to work
