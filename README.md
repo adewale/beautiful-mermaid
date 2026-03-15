@@ -558,6 +558,14 @@ Default colors (`#FFFFFF` / `#27272A`).
 
 ---
 
+## Contributing
+
+Adding a Mermaid-supported diagram type to this repo? Start with [ADDING_DIAGRAM_TYPES.md](./ADDING_DIAGRAM_TYPES.md).
+
+The short version: copy an official Mermaid example into a test, make sure `beautiful-mermaid` renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
+
+---
+
 ## Attribution
 
 The ASCII rendering engine is based on [mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff. We ported it from Go to TypeScript and extended it with:
