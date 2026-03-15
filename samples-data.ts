@@ -1225,6 +1225,24 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  USER JOURNEYS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Journey: My Working Day',
+    category: 'Journey',
+    description: 'Scored tasks grouped into sections with actor tags.',
+    source: `journey
+    title My working day
+    section Go to work
+      Make tea: 5: Me
+      Go upstairs: 3: Me
+    section Workday
+      Do work: 1: Me, Cat
+      Review PRs: 4: Me, Team`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  XY CHARTS (xychart-beta)
   // ══════════════════════════════════════════════════════════════════════════
 

@@ -11,6 +11,7 @@
 //   - Class diagrams (classDiagram)
 //   - ER diagrams (erDiagram)
 //   - Timeline diagrams (timeline)
+//   - User Journey diagrams (journey)
 //   - XY charts (xychart / xychart-beta)
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
@@ -51,6 +52,9 @@ import { renderErSvg } from './er/renderer.ts'
 import { parseTimelineDiagram } from './timeline/parser.ts'
 import { layoutTimelineDiagram } from './timeline/layout.ts'
 import { renderTimelineSvg } from './timeline/renderer.ts'
+import { parseJourneyDiagram } from './journey/parser.ts'
+import { layoutJourneyDiagram } from './journey/layout.ts'
+import { renderJourneySvg } from './journey/renderer.ts'
 import { parseXYChart } from './xychart/parser.ts'
 import { layoutXYChart } from './xychart/layout.ts'
 import { renderXYChartSvg } from './xychart/renderer.ts'
@@ -59,9 +63,10 @@ import { renderXYChartSvg } from './xychart/renderer.ts'
  * Detect the diagram type from the mermaid source text.
  * Returns the type keyword used for routing to the correct pipeline.
  */
-function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'xychart' {
+function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
   if (/^timeline\s*$/.test(firstLine)) return 'timeline'
+  if (/^journey\s*$/.test(firstLine)) return 'journey'
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
   if (/^classdiagram\s*$/.test(firstLine)) return 'class'
   if (/^erdiagram\s*$/.test(firstLine)) return 'er'
@@ -198,6 +203,11 @@ export function renderMermaidSVG(
         normalizedSource.config.timeline,
         normalizedSource.config.themeVariables,
       )
+    }
+    case 'journey': {
+      const diagram = parseJourneyDiagram(lines)
+      const positioned = layoutJourneyDiagram(diagram, options)
+      return renderJourneySvg(positioned, colors, font, transparent)
     }
     case 'xychart': {
       const chart = parseXYChart(lines, normalizedSource.frontmatter)
