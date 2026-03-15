@@ -6,12 +6,40 @@
 // ============================================================================
 
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
+import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
+import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 
-function renderScore(score: number, useAscii: boolean): string {
+interface StyledSegment {
+  text: string
+  role: CharRole | null
+}
+
+function renderStyledLine(
+  segments: StyledSegment[],
+  colorMode: ColorMode,
+  theme: AsciiTheme,
+): string {
+  const chars: string[] = []
+  const roles: (CharRole | null)[] = []
+
+  for (const segment of segments) {
+    for (const char of segment.text) {
+      chars.push(char)
+      roles.push(segment.role)
+    }
+  }
+
+  return colorizeLine(chars, roles, theme, colorMode)
+}
+
+function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] {
   const filled = useAscii ? '#' : '●'
   const empty = useAscii ? '.' : '○'
-  return filled.repeat(score) + empty.repeat(5 - score)
+
+  return [
+    { text: filled.repeat(score), role: 'arrow' },
+    { text: empty.repeat(5 - score), role: 'border' },
+  ].filter(segment => segment.text.length > 0)
 }
 
 /**
@@ -20,43 +48,65 @@ function renderScore(score: number, useAscii: boolean): string {
 export function renderJourneyAscii(
   text: string,
   config: AsciiConfig,
-  _colorMode?: ColorMode,
-  _theme?: AsciiTheme,
+  colorMode: ColorMode = 'none',
+  theme: AsciiTheme = DEFAULT_ASCII_THEME,
 ): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseJourneyDiagram(lines)
   const useAscii = config.useAscii
   const out: string[] = []
+  const pushLine = (segments: StyledSegment[] = []): void => {
+    out.push(segments.length === 0 ? '' : renderStyledLine(segments, colorMode, theme))
+  }
 
   if (diagram.title) {
-    out.push(...diagram.title.split('\n'))
-    out.push('')
+    for (const line of diagram.title.split('\n')) {
+      pushLine([{ text: line, role: 'text' }])
+    }
+    pushLine()
   }
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
 
     if (section.label) {
-      out.push(`[${section.label.replace(/\n/g, ' / ')}]`)
+      pushLine([
+        { text: '[', role: 'border' },
+        { text: section.label.replace(/\n/g, ' / '), role: 'text' },
+        { text: ']', role: 'border' },
+      ])
     }
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
-      const score = renderScore(task.score, useAscii)
+      const scoreSegments = renderScoreSegments(task.score, useAscii)
+      const scoreWidth = 5
       const taskLines = task.text.split('\n')
 
-      out.push(`${score} ${taskLines[0] ?? ''}`)
+      pushLine([
+        ...scoreSegments,
+        { text: ' ', role: null },
+        { text: taskLines[0] ?? '', role: 'text' },
+      ])
       for (const line of taskLines.slice(1)) {
-        out.push(`${' '.repeat(score.length + 1)} ${line}`)
+        pushLine([
+          { text: `${' '.repeat(scoreWidth + 1)} `, role: null },
+          { text: line, role: 'text' },
+        ])
       }
 
       if (task.actors.length > 0) {
-        out.push(`  by ${task.actors.join(', ')}`)
+        pushLine([
+          { text: '  ', role: null },
+          { text: 'by', role: 'border' },
+          { text: ' ', role: null },
+          { text: task.actors.join(', '), role: 'text' },
+        ])
       }
 
       const moreTasks = taskIndex < section.tasks.length - 1
       const moreSections = sectionIndex < diagram.sections.length - 1
-      if (moreTasks || moreSections) out.push('')
+      if (moreTasks || moreSections) pushLine()
     }
   }
 
