@@ -37,12 +37,11 @@ function renderStyledLine(
  * Render a Mermaid timeline diagram to ASCII/Unicode text.
  */
 export function renderTimelineAscii(
-  text: string,
+  lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
 ): string {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseTimelineDiagram(lines)
   const useAscii = config.useAscii
 

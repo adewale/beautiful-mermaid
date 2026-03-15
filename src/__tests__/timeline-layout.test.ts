@@ -65,4 +65,25 @@ describe('timeline layout', () => {
     expect(secondSection.periods[0]!.centerX).toBeLessThan(secondSection.x + secondSection.width)
     expect(diagram.title!.y).toBeLessThan(firstSection.y + firstSection.headerHeight)
   })
+
+  it('wraps long labels instead of letting a single event force unbounded width', () => {
+    const diagram = layout(`timeline
+      2024 : This is a deliberately long event label that should wrap onto multiple lines in the positioned timeline output`)
+    const period = diagram.sections[0]!.periods[0]!
+    const event = period.events[0]!
+
+    expect(period.label).toBe('2024')
+    expect(event.text).toContain('\n')
+    expect(event.width).toBeLessThan(220)
+  })
+
+  it('carries accessibility metadata through layout for the renderer', () => {
+    const diagram = layout(`timeline
+      accTitle: Accessible roadmap
+      accDescr: Public milestones
+      2024 : Launch`)
+
+    expect(diagram.accessibilityTitle).toBe('Accessible roadmap')
+    expect(diagram.accessibilityDescription).toBe('Public milestones')
+  })
 })

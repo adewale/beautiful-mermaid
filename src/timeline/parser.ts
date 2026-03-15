@@ -55,6 +55,7 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
     const line = lines[i]!
 
     if (/^timeline\b/i.test(line)) continue
+    if (/^#/.test(line)) continue
 
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
@@ -62,7 +63,40 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    const sectionMatch = line.match(/^section\s+(.+)$/i)
+    const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
+    if (accTitleMatch) {
+      diagram.accessibilityTitle = normalizeBrTags(accTitleMatch[1]!.trim())
+      continue
+    }
+
+    const accDescrMatch = line.match(/^accDescr\s*:\s*(.+)$/i)
+    if (accDescrMatch) {
+      diagram.accessibilityDescription = normalizeBrTags(accDescrMatch[1]!.trim())
+      continue
+    }
+
+    if (/^accDescr\s*\{\s*$/i.test(line)) {
+      const descriptionLines: string[] = []
+      let foundClosingBrace = false
+
+      while (++i < lines.length) {
+        const blockLine = lines[i]!
+        if (blockLine === '}') {
+          foundClosingBrace = true
+          break
+        }
+        descriptionLines.push(blockLine)
+      }
+
+      if (!foundClosingBrace) {
+        throw new Error('Timeline accDescr block was not closed with "}"')
+      }
+
+      diagram.accessibilityDescription = normalizeBrTags(descriptionLines.join('\n').trim())
+      continue
+    }
+
+    const sectionMatch = line.match(/^section\s+([^:]+)$/i)
     if (sectionMatch) {
       currentSection = {
         id: `section-${sectionIndex++}`,
@@ -74,19 +108,19 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    const continuationMatch = line.match(/^:\s*(.+)$/)
+    const continuationMatch = line.match(/^:\s+(.+)$/)
     if (continuationMatch) {
       if (!currentPeriod) {
         throw new Error('Timeline continuation found before any period was declared')
       }
-      pushEvents(currentPeriod, continuationMatch[1]!.split(/\s*:\s*/))
+      pushEvents(currentPeriod, splitTimelineEvents(`: ${continuationMatch[1]!}`))
       continue
     }
 
-    const parts = line.split(/\s*:\s*/)
-    if (parts.length >= 2) {
-      const periodLabel = normalizeBrTags(parts[0]!.trim())
-      const events = parts.slice(1)
+    const periodMatch = line.match(/^([^:#\n]+?)(\s*:\s+.+)$/)
+    if (periodMatch) {
+      const periodLabel = normalizeBrTags(periodMatch[1]!.trim())
+      const events = splitTimelineEvents(periodMatch[2]!)
 
       if (!periodLabel) {
         throw new Error(`Invalid timeline period: "${line}"`)
@@ -108,6 +142,8 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       currentPeriod = period
       continue
     }
+
+    throw new Error(`Unsupported timeline syntax: "${line}"`)
   }
 
   if (diagram.sections.length === 0 || diagram.sections.every(section => section.periods.length === 0)) {
@@ -115,4 +151,35 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
   }
 
   return diagram
+}
+
+function splitTimelineEvents(raw: string): string[] {
+  const events: string[] = []
+  let index = 0
+
+  while (index < raw.length) {
+    while (index < raw.length && /\s/.test(raw[index]!)) index++
+    if (index >= raw.length) break
+
+    if (raw[index] !== ':') {
+      throw new Error(`Invalid timeline event list: "${raw}"`)
+    }
+
+    index++
+    if (index >= raw.length || !/\s/.test(raw[index]!)) {
+      throw new Error(`Timeline events must use ": " separators: "${raw}"`)
+    }
+
+    while (index < raw.length && /\s/.test(raw[index]!)) index++
+    const start = index
+
+    while (index < raw.length) {
+      if (raw[index] === ':' && /\s/.test(raw[index + 1] ?? '')) break
+      index++
+    }
+
+    events.push(raw.slice(start, index).trim())
+  }
+
+  return events
 }

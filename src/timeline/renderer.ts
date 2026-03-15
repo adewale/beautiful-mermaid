@@ -2,6 +2,7 @@ import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTi
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -28,6 +29,13 @@ const TL = {
   eventAccentWidth: 4,
 } as const
 
+interface TimelineFamilyPalette {
+  accent: string
+  fill: string
+  label: string
+  line: string
+}
+
 const TL_THEME_FAMILY_ACCENTS = [
   'var(--_arrow)',
   mix('var(--_arrow)', 'var(--_line)', 72),
@@ -51,21 +59,34 @@ export function renderTimelineSvg(
   diagram: PositionedTimelineDiagram,
   colors: DiagramColors,
   font: string = 'Inter',
-  transparent: boolean = false
+  transparent: boolean = false,
+  timelineConfig: TimelineRuntimeConfig = {},
+  themeVariables?: MermaidThemeVariables,
 ): string {
   const parts: string[] = []
   const useSectionFamilies = diagram.sections.some(section => Boolean(section.label))
-  const familyAccents = getTimelineFamilyAccents(colors)
+  const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
+  const accessibleDescription = diagram.accessibilityDescription
+  const familyPalettes = getTimelineFamilyPalettes(colors, timelineConfig, themeVariables)
+  const allowMulticolor = !(timelineConfig.disableMulticolor && !useSectionFamilies)
+  const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription)
 
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
+  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
   parts.push(buildStyleBlock(font, false))
   parts.push(timelineStyles())
+
+  if (accessibleTitle) {
+    parts.push(`<title id="bm-a11y-title">${escapeXml(accessibleTitle)}</title>`)
+  }
+  if (accessibleDescription) {
+    parts.push(`<desc id="bm-a11y-desc">${escapeXml(accessibleDescription)}</desc>`)
+  }
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const familyIndex = useSectionFamilies ? sectionIndex : 0
     if (section.framed) {
-      parts.push(renderSectionFrame(section, familyIndex, familyAccents))
+      parts.push(renderSectionFrame(section, familyIndex, familyPalettes))
     }
   }
 
@@ -78,8 +99,8 @@ export function renderTimelineSvg(
     const section = diagram.sections[sectionIndex]!
     const sectionFamilyIndex = useSectionFamilies ? sectionIndex : undefined
     for (const period of section.periods) {
-      const familyIndex = sectionFamilyIndex ?? periodFamilyIndex++
-      parts.push(renderPeriod(period, section.label, familyIndex, familyAccents))
+      const familyIndex = sectionFamilyIndex ?? (allowMulticolor ? periodFamilyIndex++ : 0)
+      parts.push(renderPeriod(period, section.label, familyIndex, familyPalettes))
     }
   }
 
@@ -103,28 +124,28 @@ function timelineStyles(): string {
   return `<style>
   .timeline-title { fill: var(--_text); }
   .timeline-rail { stroke: var(--_line); stroke-width: 1.5; stroke-linecap: round; }
-  .timeline-section-bg { fill: var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg))); stroke: var(--tl-event-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .timeline-section-band { fill: var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg))); stroke: var(--tl-event-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .timeline-section-label { fill: var(--_text-sec); }
-  .timeline-stem { stroke: var(--tl-stem, color-mix(in srgb, var(--_arrow) 32%, var(--_line))); stroke-width: 1; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-marker-ring, var(--_arrow)); stroke-width: 1.5; }
-  .timeline-marker-core { fill: var(--tl-marker-core, var(--_arrow)); }
+  .timeline-section-bg { fill: var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg))); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
+  .timeline-section-band { fill: var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg))); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
+  .timeline-section-label { fill: var(--tl-label, var(--_text-sec)); }
+  .timeline-stem { stroke: var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line))); stroke-width: 1; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-line, var(--_arrow)); stroke-width: 1.5; }
+  .timeline-marker-core { fill: var(--tl-accent, var(--_arrow)); }
   .timeline-period-pill { fill: var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg))); stroke: var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg))); stroke-width: 1; }
-  .timeline-period-text { fill: var(--_text); }
-  .timeline-event-card { fill: var(--tl-event-fill, var(--_node-fill)); stroke: var(--tl-event-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .timeline-period-text { fill: var(--tl-label, var(--_text)); }
+  .timeline-event-card { fill: var(--tl-event-fill, var(--_node-fill)); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
   .timeline-event-accent { fill: var(--tl-event-accent, color-mix(in srgb, var(--_arrow) 18%, var(--bg))); }
-  .timeline-event-text { fill: var(--_text-muted); }
+  .timeline-event-text { fill: var(--tl-label, var(--_text-muted)); }
 </style>`
 }
 
 function renderSectionFrame(
   section: PositionedTimelineSection,
   familyIndex: number,
-  familyAccents: readonly string[],
+  familyPalettes: readonly TimelineFamilyPalette[],
 ): string {
   const parts: string[] = []
   const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
-  const familyAttr = renderFamilyAttr(familyIndex, familyAccents)
+  const familyAttr = renderFamilyAttr(familyIndex, familyPalettes)
   parts.push(`<g class="timeline-section" data-id="${escapeAttr(section.id)}"${labelAttr}${familyAttr}>`)
   parts.push(
     `  <rect class="timeline-section-bg" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.height}" rx="0" ry="0" />`
@@ -155,11 +176,11 @@ function renderPeriod(
   period: PositionedTimelinePeriod,
   sectionLabel: string | undefined,
   familyIndex: number,
-  familyAccents: readonly string[],
+  familyPalettes: readonly TimelineFamilyPalette[],
 ): string {
   const parts: string[] = []
   const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
-  const familyAttr = renderFamilyAttr(familyIndex, familyAccents)
+  const familyAttr = renderFamilyAttr(familyIndex, familyPalettes)
 
   parts.push(
     `<g class="timeline-period" data-id="${escapeAttr(period.id)}" data-label="${escapeAttr(period.label)}"${sectionAttr}${familyAttr}>`
@@ -187,7 +208,7 @@ function renderPeriod(
   )
 
   for (const event of period.events) {
-    parts.push(renderEvent(event, sectionLabel, familyIndex, familyAccents.length))
+    parts.push(renderEvent(event, sectionLabel, familyIndex, familyPalettes))
   }
 
   parts.push('</g>')
@@ -198,10 +219,10 @@ function renderEvent(
   event: PositionedTimelineEvent,
   sectionLabel: string | undefined,
   familyIndex: number,
-  familyCount: number,
+  familyPalettes: readonly TimelineFamilyPalette[],
 ): string {
   const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
-  const familyAttr = ` data-family="${familyIndex % familyCount}"`
+  const familyAttr = ` data-family="${familyIndex % familyPalettes.length}"`
 
   return [
     `<g class="timeline-event" data-id="${escapeAttr(event.id)}" data-period="${escapeAttr(event.periodLabel)}"${sectionAttr}${familyAttr}>`,
@@ -218,27 +239,32 @@ function renderEvent(
 ].join('\n')
 }
 
-function renderFamilyAttr(familyIndex: number, familyAccents: readonly string[]): string {
-  const family = familyIndex % familyAccents.length
-  const accent = familyAccents[family]!
+function renderFamilyAttr(familyIndex: number, familyPalettes: readonly TimelineFamilyPalette[]): string {
+  const family = familyIndex % familyPalettes.length
+  const palette = familyPalettes[family]!
   const style = [
-    `--tl-accent:${accent}`,
-    `--tl-section-bg:${mix(accent, 'var(--bg)', 4)}`,
-    `--tl-section-band:${mix(accent, 'var(--bg)', 9)}`,
-    `--tl-stem:${mix(accent, 'var(--_line)', 36)}`,
-    `--tl-pill-fill:${mix(accent, 'var(--bg)', 8)}`,
-    `--tl-pill-stroke:${mix(accent, 'var(--bg)', 24)}`,
-    `--tl-marker-ring:${accent}`,
-    `--tl-marker-core:${accent}`,
-    `--tl-event-fill:${mix(accent, 'var(--_node-fill)', 10)}`,
-    `--tl-event-stroke:${mix(accent, 'var(--_node-stroke)', 24)}`,
-    `--tl-event-accent:${mix(accent, 'var(--bg)', 18)}`,
+    `--tl-accent:${palette.accent}`,
+    `--tl-fill:${palette.fill}`,
+    `--tl-label:${palette.label}`,
+    `--tl-line:${palette.line}`,
+    `--tl-section-bg:${mix(palette.fill, 'var(--bg)', 6)}`,
+    `--tl-section-band:${mix(palette.fill, 'var(--bg)', 12)}`,
+    `--tl-pill-fill:${mix(palette.fill, 'var(--bg)', 11)}`,
+    `--tl-pill-stroke:${mix(palette.fill, palette.line, 36)}`,
+    `--tl-event-fill:${mix(palette.fill, 'var(--_node-fill)', 16)}`,
+    `--tl-event-accent:${mix(palette.fill, 'var(--bg)', 26)}`,
   ].join(';')
 
   return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
-function getTimelineFamilyAccents(colors: DiagramColors): readonly string[] {
+function getTimelineFamilyPalettes(
+  colors: DiagramColors,
+  timelineConfig: TimelineRuntimeConfig,
+  themeVariables?: MermaidThemeVariables,
+): readonly TimelineFamilyPalette[] {
+  const customFills = timelineConfig.sectionFills ?? []
+  const customLabels = timelineConfig.sectionColours ?? []
   const hasThemeEnrichment = Boolean(
     colors.accent ||
     colors.line ||
@@ -247,11 +273,47 @@ function getTimelineFamilyAccents(colors: DiagramColors): readonly string[] {
     colors.border
   )
 
-  return hasThemeEnrichment ? TL_THEME_FAMILY_ACCENTS : TL_DEFAULT_FAMILY_ACCENTS
+  return Array.from({ length: 12 }, (_, index) => {
+    const defaultFill = hasThemeEnrichment
+      ? TL_THEME_FAMILY_ACCENTS[index % TL_THEME_FAMILY_ACCENTS.length]!
+      : TL_DEFAULT_FAMILY_ACCENTS[index % TL_DEFAULT_FAMILY_ACCENTS.length]!
+    const fill = customFills[index % Math.max(customFills.length, 1)]
+      ?? readTimelineScale(themeVariables, 'cScale', index)
+      ?? defaultFill
+    const label = customLabels[index % Math.max(customLabels.length, 1)]
+      ?? readTimelineScale(themeVariables, 'cScaleLabel', index)
+      ?? 'var(--_text)'
+    const line = readTimelineScale(themeVariables, 'cScaleInv', index)
+      ?? mix(fill, 'var(--_line)', 48)
+
+    return { accent: fill, fill, label, line }
+  })
 }
 
 function mix(primary: string, secondary: string, amount: number): string {
   return `color-mix(in srgb, ${primary} ${amount}%, ${secondary})`
+}
+
+function readTimelineScale(
+  themeVariables: MermaidThemeVariables | undefined,
+  prefix: 'cScale' | 'cScaleLabel' | 'cScaleInv',
+  index: number,
+): string | undefined {
+  if (!themeVariables) return undefined
+  const value = themeVariables[`${prefix}${index}`]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function buildAccessibilityAttrs(
+  title: string | undefined,
+  description: string | undefined,
+): Record<string, string> {
+  if (!title && !description) return {}
+
+  const attrs: Record<string, string> = { role: 'img' }
+  if (title) attrs['aria-labelledby'] = 'bm-a11y-title'
+  if (description) attrs['aria-describedby'] = 'bm-a11y-desc'
+  return attrs
 }
 
 function escapeAttr(text: string): string {

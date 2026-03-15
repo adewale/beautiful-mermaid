@@ -27,6 +27,7 @@ export { fromShikiTheme, THEMES, DEFAULTS } from './theme.ts'
 export { parseMermaid } from './parser.ts'
 export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
+export type { MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig } from './mermaid-source.ts'
 
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
@@ -34,8 +35,9 @@ import { layoutGraphSync } from './layout.ts'
 import { renderSvg } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS } from './theme.ts'
+import { DEFAULTS, THEMES } from './theme.ts'
 import { normalizeMermaidSource } from './mermaid-source.ts'
+import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
@@ -73,16 +75,32 @@ function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class
  * Uses DEFAULTS for bg/fg when not provided, and passes through
  * optional enrichment colors (line, accent, muted, surface, border).
  */
-function buildColors(options: RenderOptions): DiagramColors {
+function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): DiagramColors {
+  const theme = config.theme && config.theme in THEMES
+    ? THEMES[config.theme as keyof typeof THEMES]
+    : undefined
+  const vars = config.themeVariables
+
   return {
-    bg: options.bg ?? DEFAULTS.bg,
-    fg: options.fg ?? DEFAULTS.fg,
-    line: options.line,
-    accent: options.accent,
-    muted: options.muted,
-    surface: options.surface,
-    border: options.border,
+    bg: options.bg ?? readThemeValue(vars, 'background', 'mainBkg') ?? theme?.bg ?? DEFAULTS.bg,
+    fg: options.fg ?? readThemeValue(vars, 'primaryTextColor', 'textColor', 'nodeTextColor') ?? theme?.fg ?? DEFAULTS.fg,
+    line: options.line ?? readThemeValue(vars, 'lineColor', 'defaultLinkColor') ?? theme?.line,
+    accent: options.accent ?? readThemeValue(vars, 'arrowheadColor', 'primaryColor') ?? theme?.accent,
+    muted: options.muted ?? readThemeValue(vars, 'secondaryTextColor', 'tertiaryTextColor') ?? theme?.muted,
+    surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
+    border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
   }
+}
+
+function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string[]): string | undefined {
+  if (!vars) return undefined
+
+  for (const key of keys) {
+    const value = vars[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+
+  return undefined
 }
 
 /**
@@ -120,10 +138,13 @@ export function renderMermaidSVG(
   // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
   // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
   text = decodeXML(text)
-  const normalizedSource = normalizeMermaidSource(text)
+  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const colors = buildColors(options)
-  const font = options.font ?? 'Inter'
+  const colors = buildColors(options, normalizedSource.config)
+  const font = options.font
+    ?? normalizedSource.config.fontFamily
+    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
+    ?? 'Inter'
   const transparent = options.transparent ?? false
   const diagramType = detectDiagramType(normalizedSource.firstLine)
   const lines = normalizedSource.lines
@@ -147,7 +168,14 @@ export function renderMermaidSVG(
     case 'timeline': {
       const diagram = parseTimelineDiagram(lines)
       const positioned = layoutTimelineDiagram(diagram, options)
-      return renderTimelineSvg(positioned, colors, font, transparent)
+      return renderTimelineSvg(
+        positioned,
+        colors,
+        font,
+        transparent,
+        normalizedSource.config.timeline,
+        normalizedSource.config.themeVariables,
+      )
     }
     case 'xychart': {
       const chart = parseXYChart(lines)

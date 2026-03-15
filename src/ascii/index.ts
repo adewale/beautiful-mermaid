@@ -31,6 +31,7 @@ import { renderXYChartAscii } from './xychart.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -58,6 +59,8 @@ export interface AsciiRenderOptions {
   colorMode?: ColorMode | 'auto'
   /** Theme colors for ASCII output. Uses default theme if not provided. */
   theme?: Partial<AsciiTheme>
+  /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
+  mermaidConfig?: MermaidRuntimeConfig
 }
 
 /**
@@ -120,25 +123,25 @@ export function renderMermaidASCII(
 
   // Merge user theme with defaults
   const theme: AsciiTheme = { ...DEFAULT_ASCII_THEME, ...options.theme }
-  const normalizedSource = normalizeMermaidSource(text)
+  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
   const diagramType = detectDiagramType(normalizedSource.firstLine)
 
   switch (diagramType) {
     case 'xychart':
-      return renderXYChartAscii(text, config, colorMode, theme)
+      return renderXYChartAscii(normalizedSource.text, config, colorMode, theme)
 
     case 'sequence':
-      return renderSequenceAscii(text, config, colorMode, theme)
+      return renderSequenceAscii(normalizedSource.text, config, colorMode, theme)
 
     case 'class':
-      return renderClassAscii(text, config, colorMode, theme)
+      return renderClassAscii(normalizedSource.text, config, colorMode, theme)
 
     case 'er':
-      return renderErAscii(text, config, colorMode, theme)
+      return renderErAscii(normalizedSource.text, config, colorMode, theme)
 
     case 'timeline':
-      return renderTimelineAscii(text, config, colorMode, theme)
+      return renderTimelineAscii(normalizedSource.lines, config, colorMode, theme)
 
     case 'flowchart':
     default: {

@@ -6,7 +6,8 @@ import type {
   PositionedTimelineEvent,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { measureMultilineText } from '../text-metrics.ts'
+import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
+import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
 // Timeline diagram layout engine
@@ -23,15 +24,20 @@ const TL = {
   titleFontSize: 18,
   titleFontWeight: 600,
   titleGap: 24,
+  titleWrapWidth: 420,
   sectionHeaderHeight: 24,
+  sectionFontSize: 12,
+  sectionFontWeight: 600,
   sectionHeaderPadX: 12,
   sectionHeaderGap: 14,
+  sectionWrapWidth: 168,
   sectionPadX: 18,
   sectionPadBottom: 18,
   sectionGap: 28,
   columnGap: 24,
   pillFontSize: 12,
   pillFontWeight: 600,
+  pillWrapWidth: 116,
   pillPadX: 12,
   pillPadY: 8,
   pillMinWidth: 72,
@@ -40,6 +46,7 @@ const TL = {
   markerRadius: 8,
   eventFontSize: 12,
   eventFontWeight: 400,
+  eventWrapWidth: 148,
   eventPadX: 14,
   eventPadY: 10,
   eventMinWidth: 128,
@@ -47,14 +54,16 @@ const TL = {
 } as const
 
 interface PeriodMetric {
+  label: string
   pillWidth: number
   pillHeight: number
   columnWidth: number
   stackHeight: number
-  events: Array<{ width: number; height: number }>
+  events: Array<{ text: string; width: number; height: number }>
 }
 
 interface SectionMetric {
+  label?: string
   headerWidth: number
   innerWidth: number
   columnAreaWidth: number
@@ -73,20 +82,29 @@ export function layoutTimelineDiagram(
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
   const sectionHeaderHeight = hasNamedSections ? TL.sectionHeaderHeight : 0
   const sectionPadX = showSectionFrames ? TL.sectionPadX : 0
+  const titleText = diagram.title
+    ? wrapTimelineText(diagram.title, TL.titleWrapWidth, TL.titleFontSize, TL.titleFontWeight)
+    : undefined
 
-  const titleMetrics = diagram.title
-    ? measureMultilineText(diagram.title, TL.titleFontSize, TL.titleFontWeight)
+  const titleMetrics = titleText
+    ? measureMultilineText(titleText, TL.titleFontSize, TL.titleFontWeight)
     : undefined
 
   const metrics: SectionMetric[] = diagram.sections.map(section => {
+    const wrappedSectionLabel = section.label
+      ? wrapTimelineText(section.label, TL.sectionWrapWidth, TL.sectionFontSize, TL.sectionFontWeight)
+      : undefined
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
-      const pillText = measureMultilineText(period.label, TL.pillFontSize, TL.pillFontWeight)
+      const wrappedPeriodLabel = wrapTimelineText(period.label, TL.pillWrapWidth, TL.pillFontSize, TL.pillFontWeight)
+      const pillText = measureMultilineText(wrappedPeriodLabel, TL.pillFontSize, TL.pillFontWeight)
       const pillWidth = Math.max(TL.pillMinWidth, pillText.width + TL.pillPadX * 2)
       const pillHeight = pillText.height + TL.pillPadY * 2
 
       const eventMetrics = period.events.map(event => {
-        const text = measureMultilineText(event.text, TL.eventFontSize, TL.eventFontWeight)
+        const wrappedEventText = wrapTimelineText(event.text, TL.eventWrapWidth, TL.eventFontSize, TL.eventFontWeight)
+        const text = measureMultilineText(wrappedEventText, TL.eventFontSize, TL.eventFontWeight)
         return {
+          text: wrappedEventText,
           width: Math.max(TL.eventMinWidth, text.width + TL.eventPadX * 2),
           height: text.height + TL.eventPadY * 2,
         }
@@ -102,7 +120,14 @@ export function layoutTimelineDiagram(
         return sum + gap + event.height
       }, 0)
 
-      return { pillWidth, pillHeight, columnWidth, stackHeight, events: eventMetrics }
+      return {
+        label: wrappedPeriodLabel,
+        pillWidth,
+        pillHeight,
+        columnWidth,
+        stackHeight,
+        events: eventMetrics,
+      }
     })
 
     const columnAreaWidth = periodMetrics.reduce((sum, period, index) => {
@@ -110,14 +135,21 @@ export function layoutTimelineDiagram(
       return sum + gap + period.columnWidth
     }, 0)
 
-    const headerWidth = section.label
-      ? measureMultilineText(section.label, TL.pillFontSize, TL.pillFontWeight).width + TL.sectionHeaderPadX * 2
+    const headerWidth = wrappedSectionLabel
+      ? measureMultilineText(wrappedSectionLabel, TL.sectionFontSize, TL.sectionFontWeight).width + TL.sectionHeaderPadX * 2
       : 0
 
     const innerWidth = Math.max(columnAreaWidth, headerWidth)
     const maxStackHeight = Math.max(0, ...periodMetrics.map(period => period.stackHeight))
 
-    return { headerWidth, innerWidth, columnAreaWidth, periods: periodMetrics, maxStackHeight }
+    return {
+      label: wrappedSectionLabel,
+      headerWidth,
+      innerWidth,
+      columnAreaWidth,
+      periods: periodMetrics,
+      maxStackHeight,
+    }
   })
 
   const maxPillHeight = Math.max(
@@ -161,8 +193,8 @@ export function layoutTimelineDiagram(
           id: event.id,
           sectionId: section.id,
           periodId: period.id,
-          periodLabel: period.label,
-          text: event.text,
+          periodLabel: periodMetric.label,
+          text: eventMetric.text,
           x: centerX - eventMetric.width / 2,
           y: eventY,
           width: eventMetric.width,
@@ -177,7 +209,7 @@ export function layoutTimelineDiagram(
       periods.push({
         id: period.id,
         sectionId: section.id,
-        label: period.label,
+        label: periodMetric.label,
         centerX,
         markerY: railY,
         pillX: centerX - periodMetric.pillWidth / 2,
@@ -202,7 +234,7 @@ export function layoutTimelineDiagram(
 
     sections.push({
       id: section.id,
-      label: section.label,
+      label: metric.label,
       x: cursorX,
       y: contentTop,
       width: sectionWidth,
@@ -227,13 +259,15 @@ export function layoutTimelineDiagram(
   return {
     width,
     height,
-    title: diagram.title
+    title: titleText
       ? {
-          text: diagram.title,
+          text: titleText,
           x: width / 2,
           y: TL.paddingY + titleMetrics!.height / 2,
         }
       : undefined,
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
     rail: {
       x1: firstCenter === lastCenter ? firstCenter - 42 : firstCenter,
       x2: firstCenter === lastCenter ? lastCenter + 42 : lastCenter,
@@ -241,4 +275,84 @@ export function layoutTimelineDiagram(
     },
     sections,
   }
+}
+
+function wrapTimelineText(
+  text: string,
+  maxWidth: number,
+  fontSize: number,
+  fontWeight: number,
+): string {
+  return text
+    .split('\n')
+    .flatMap(line => wrapTimelineLine(line, maxWidth, fontSize, fontWeight))
+    .join('\n')
+}
+
+function wrapTimelineLine(
+  line: string,
+  maxWidth: number,
+  fontSize: number,
+  fontWeight: number,
+): string[] {
+  const plainLine = stripFormattingTags(line)
+  if (measureTextWidth(plainLine, fontSize, fontWeight) <= maxWidth) {
+    return [line]
+  }
+
+  const words = line.trim().split(/\s+/)
+  if (words.length <= 1) {
+    return breakLongToken(line, maxWidth, fontSize, fontWeight)
+  }
+
+  const wrapped: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    const candidateWidth = measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight)
+
+    if (candidateWidth <= maxWidth) {
+      current = candidate
+      continue
+    }
+
+    if (current) {
+      wrapped.push(current)
+      current = ''
+    }
+
+    if (measureTextWidth(stripFormattingTags(word), fontSize, fontWeight) > maxWidth) {
+      wrapped.push(...breakLongToken(word, maxWidth, fontSize, fontWeight))
+    } else {
+      current = word
+    }
+  }
+
+  if (current) wrapped.push(current)
+  return wrapped
+}
+
+function breakLongToken(
+  token: string,
+  maxWidth: number,
+  fontSize: number,
+  fontWeight: number,
+): string[] {
+  const chunks: string[] = []
+  let current = ''
+
+  for (const char of token) {
+    const candidate = current + char
+    if (current && measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) > maxWidth) {
+      chunks.push(current)
+      current = char
+      continue
+    }
+
+    current = candidate
+  }
+
+  if (current) chunks.push(current)
+  return chunks
 }

@@ -90,5 +90,19 @@ describe('timeline ASCII', () => {
     expect(result).toContain('Private alpha')
     expect(result).toContain('○ 2023')
     expect(result).toContain('Public launch')
+    expect(result).not.toContain('○ title')
+    expect(result).not.toContain('Timeline example')
+  })
+
+  it('does not render accessibility metadata as visible timeline content', () => {
+    const result = render(`timeline
+      accTitle: Accessible roadmap
+      accDescr: Product launch plan
+      2024 : Private alpha`)
+
+    expect(result).toContain('○ 2024')
+    expect(result).toContain('Private alpha')
+    expect(result).not.toContain('Accessible roadmap')
+    expect(result).not.toContain('Product launch plan')
   })
 })

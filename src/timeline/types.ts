@@ -9,6 +9,10 @@
 export interface TimelineDiagram {
   /** Optional timeline title */
   title?: string
+  /** Optional accessibility title (Mermaid accTitle) */
+  accessibilityTitle?: string
+  /** Optional accessibility description (Mermaid accDescr) */
+  accessibilityDescription?: string
   /** Ordered sections in input order */
   sections: TimelineSection[]
 }
@@ -39,6 +43,8 @@ export interface PositionedTimelineDiagram {
   width: number
   height: number
   title?: PositionedTimelineTitle
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   rail: TimelineRail
   sections: PositionedTimelineSection[]
 }

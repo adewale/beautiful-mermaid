@@ -118,4 +118,67 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('Private alpha')
     expect(svg).toContain('Public launch')
   })
+
+  it('renders accessibility metadata on the root SVG instead of as timeline content', () => {
+    const svg = render(`timeline
+      accTitle: Accessible roadmap
+      accDescr: Product launch plan
+      2024 : Private alpha`)
+
+    expect(svg).toContain('role="img"')
+    expect(svg).toContain('aria-labelledby="bm-a11y-title"')
+    expect(svg).toContain('aria-describedby="bm-a11y-desc"')
+    expect(svg).toContain('<title id="bm-a11y-title">Accessible roadmap</title>')
+    expect(svg).toContain('<desc id="bm-a11y-desc">Product launch plan</desc>')
+    expect(svg).not.toContain('data-label="accTitle"')
+  })
+
+  it('applies theme variable color families from Mermaid init config', () => {
+    const svg = render(`%%{init: {"themeVariables":{"cScale0":"#224466","cScaleLabel0":"#f8f8f8","cScaleInv0":"#99bbdd"}}}%%
+      timeline
+      2024 : Private alpha`)
+
+    expect(svg).toContain('--tl-accent:#224466')
+    expect(svg).toContain('--tl-label:#f8f8f8')
+    expect(svg).toContain('--tl-line:#99bbdd')
+  })
+
+  it('supports explicit timeline color config from mermaidConfig options', () => {
+    const svg = render(`timeline
+      2024 : Private alpha`, {
+      mermaidConfig: {
+        timeline: {
+          sectionFills: ['#113355'],
+          sectionColours: ['#ffffff'],
+        },
+      },
+    })
+
+    expect(svg).toContain('--tl-accent:#113355')
+    expect(svg).toContain('--tl-label:#ffffff')
+  })
+
+  it('respects disableMulticolor for unsectioned timelines', () => {
+    const svg = render(`---
+      config:
+        timeline:
+          disableMulticolor: true
+      ---
+      timeline
+      2022 : Alpha
+      2023 : Beta
+      2024 : GA`)
+
+    const familyIds = [...svg.matchAll(/class="timeline-period"[\s\S]*?data-family="(\d+)"/g)].map(match => match[1])
+    expect(familyIds).toEqual(['0', '0', '0'])
+  })
+
+  it('wraps long labels automatically without explicit <br> tags', () => {
+    const svg = render(`timeline
+      2024 : This is a deliberately long event label that should wrap across multiple lines to match Mermaid timeline behavior more closely`)
+
+    expect(svg).toContain('<tspan')
+    expect(svg).toContain('This is a deliberately long')
+    expect(svg).toContain('match Mermaid timeline')
+  })
 })

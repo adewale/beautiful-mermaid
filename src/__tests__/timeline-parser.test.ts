@@ -103,9 +103,54 @@ describe('parseTimelineDiagram', () => {
     ])
   })
 
+  it('parses accessibility metadata without turning it into timeline content', () => {
+    const diagram = parse(`timeline
+      accTitle: Accessible roadmap
+      accDescr: Product launch plan
+      2024 : Private alpha`)
+
+    expect(diagram.accessibilityTitle).toBe('Accessible roadmap')
+    expect(diagram.accessibilityDescription).toBe('Product launch plan')
+    expect(diagram.sections[0]!.periods[0]!.label).toBe('2024')
+  })
+
+  it('parses multiline accDescr blocks', () => {
+    const diagram = parse(`timeline
+      accDescr {
+      First line
+      Second line
+      }
+      2024 : Launch`)
+
+    expect(diagram.accessibilityDescription).toBe('First line\nSecond line')
+  })
+
+  it('preserves colons inside event text when they are not event separators', () => {
+    const diagram = parse(`timeline
+      2024 : 10:30 launch : api:v2`)
+
+    expect(diagram.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual([
+      '10:30 launch',
+      'api:v2',
+    ])
+  })
+
+  it('ignores hash-style comment lines supported by Mermaid timeline syntax', () => {
+    const diagram = parse(`timeline
+      # release milestones
+      2024 : Launch`)
+
+    expect(diagram.sections[0]!.periods[0]!.label).toBe('2024')
+  })
+
   it('throws when a continuation appears before any period', () => {
     expect(() => parse(`timeline
       : orphaned event`)).toThrow('Timeline continuation found before any period was declared')
+  })
+
+  it('throws on unsupported timeline syntax instead of silently ignoring it', () => {
+    expect(() => parse(`timeline
+      release now`)).toThrow('Unsupported timeline syntax: "release now"')
   })
 
   it('throws when the diagram has no periods', () => {
