@@ -5,25 +5,13 @@ import type {
   PositionedArchitectureJunction,
   PositionedArchitectureService,
 } from './types.ts'
+import type { ArchitectureVisualConfig } from './config.ts'
+import { DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-
-const ARCH = {
-  groupHeaderHeight: 28,
-  groupFontSize: 12,
-  groupFontWeight: 600,
-  serviceFontSize: 13,
-  serviceFontWeight: 500,
-  edgeFontSize: 11,
-  edgeFontWeight: 400,
-  iconSize: 16,
-  serviceIconSize: 18,
-  junctionOuterRadius: 8,
-  junctionInnerRadius: 4.5,
-} as const
 
 /**
  * Render a positioned architecture diagram as SVG.
@@ -33,10 +21,17 @@ export function renderArchitectureSvg(
   colors: DiagramColors,
   font: string = 'Inter',
   transparent: boolean = false,
+  visual: ArchitectureVisualConfig = DEFAULT_ARCHITECTURE_VISUAL,
 ): string {
   const parts: string[] = []
+  const cssVars = {
+    '--arch-group-fill': visual.groupSurface,
+    '--arch-group-stroke': visual.groupBorder,
+    '--arch-service-fill': visual.serviceSurface,
+    '--arch-service-stroke': visual.serviceBorder,
+  }
 
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
+  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, cssVars))
   parts.push(buildStyleBlock(font, false))
   parts.push(architectureStyles())
   parts.push('<defs>')
@@ -44,7 +39,7 @@ export function renderArchitectureSvg(
   parts.push('</defs>')
 
   for (const group of diagram.groups) {
-    parts.push(renderGroup(group))
+    parts.push(renderGroup(group, visual))
   }
 
   for (const edge of diagram.edges) {
@@ -52,15 +47,15 @@ export function renderArchitectureSvg(
   }
 
   for (const edge of diagram.edges) {
-    if (edge.label) parts.push(renderEdgeLabel(edge))
+    if (edge.label) parts.push(renderEdgeLabel(edge, visual))
   }
 
   for (const junction of diagram.junctions) {
-    parts.push(renderJunction(junction))
+    parts.push(renderJunction(junction, visual))
   }
 
   for (const service of diagram.services) {
-    parts.push(renderService(service))
+    parts.push(renderService(service, visual))
   }
 
   parts.push('</svg>')
@@ -69,10 +64,10 @@ export function renderArchitectureSvg(
 
 function architectureStyles(): string {
   return `<style>
-  .architecture-group-frame { fill: color-mix(in srgb, var(--_node-fill) 82%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-group-label { fill: var(--_text-sec); }
-  .architecture-service-card { fill: color-mix(in srgb, var(--_node-fill) 92%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
@@ -87,7 +82,7 @@ function architectureStyles(): string {
 </style>`
 }
 
-function renderGroup(group: PositionedArchitectureGroup): string {
+function renderGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisualConfig): string {
   const parts: string[] = []
   parts.push(
     `<g class="architecture-group" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}">`
@@ -96,37 +91,37 @@ function renderGroup(group: PositionedArchitectureGroup): string {
     `  <rect class="architecture-group-frame" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="0" ry="0" />`
   )
   parts.push(
-    `  <rect class="architecture-group-band" x="${group.x}" y="${group.y}" width="${group.width}" height="${ARCH.groupHeaderHeight}" rx="0" ry="0" />`
+    `  <rect class="architecture-group-band" x="${group.x}" y="${group.y}" width="${group.width}" height="${visual.groupHeaderHeight}" rx="0" ry="0" />`
   )
 
   if (group.icon) {
-    parts.push(`  ${renderIconBadge(group.x + 10, group.y + 6, ARCH.iconSize, group.icon, true)}`)
+    parts.push(`  ${renderIconBadge(group.x + 10, group.y + 6, visual.iconSize, group.icon, true)}`)
   }
 
   parts.push(
     '  ' + renderMultilineText(
       group.label,
       group.x + (group.icon ? 36 : 12),
-      group.y + ARCH.groupHeaderHeight / 2,
-      ARCH.groupFontSize,
-      `class="architecture-group-label" text-anchor="start" font-size="${ARCH.groupFontSize}" font-weight="${ARCH.groupFontWeight}"`,
+      group.y + visual.groupHeaderHeight / 2,
+      visual.groupFontSize,
+      `class="architecture-group-label" text-anchor="start" font-size="${visual.groupFontSize}" font-weight="${visual.groupFontWeight}"`,
     )
   )
 
   for (const child of group.children) {
-    parts.push(renderGroup(child))
+    parts.push(renderGroup(child, visual))
   }
 
   parts.push('</g>')
   return parts.join('\n')
 }
 
-function renderService(service: PositionedArchitectureService): string {
+function renderService(service: PositionedArchitectureService, visual: ArchitectureVisualConfig): string {
   const parts: string[] = []
   const accentWidth = 4
   const iconX = service.x + 14
-  const iconY = service.y + service.height / 2 - ARCH.serviceIconSize / 2
-  const labelX = service.x + 14 + ARCH.serviceIconSize + 14
+  const iconY = service.y + service.height / 2 - visual.serviceIconSize / 2
+  const labelX = service.x + 14 + visual.serviceIconSize + 14
 
   parts.push(
     `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeAttr(service.label)}">`
@@ -139,13 +134,13 @@ function renderService(service: PositionedArchitectureService): string {
   )
 
   if (service.icon) {
-    parts.push(`  ${renderIconBadge(iconX, iconY, ARCH.serviceIconSize, service.icon, false)}`)
+    parts.push(`  ${renderIconBadge(iconX, iconY, visual.serviceIconSize, service.icon, false)}`)
   } else {
     parts.push(
-      `  <rect class="architecture-icon-bg" x="${iconX}" y="${iconY}" width="${ARCH.serviceIconSize}" height="${ARCH.serviceIconSize}" rx="0" ry="0" />`
+      `  <rect class="architecture-icon-bg" x="${iconX}" y="${iconY}" width="${visual.serviceIconSize}" height="${visual.serviceIconSize}" rx="0" ry="0" />`
     )
     parts.push(
-      `  <rect class="architecture-icon-fill" x="${iconX + 5}" y="${iconY + 5}" width="${ARCH.serviceIconSize - 10}" height="${ARCH.serviceIconSize - 10}" rx="0" ry="0" />`
+      `  <rect class="architecture-icon-fill" x="${iconX + 5}" y="${iconY + 5}" width="${visual.serviceIconSize - 10}" height="${visual.serviceIconSize - 10}" rx="0" ry="0" />`
     )
   }
 
@@ -154,22 +149,22 @@ function renderService(service: PositionedArchitectureService): string {
       service.label,
       labelX,
       service.y + service.height / 2,
-      ARCH.serviceFontSize,
-      `class="architecture-service-label" text-anchor="start" font-size="${ARCH.serviceFontSize}" font-weight="${ARCH.serviceFontWeight}"`,
+      visual.serviceFontSize,
+      `class="architecture-service-label" text-anchor="start" font-size="${visual.serviceFontSize}" font-weight="${visual.serviceFontWeight}"`,
     )
   )
   parts.push('</g>')
   return parts.join('\n')
 }
 
-function renderJunction(junction: PositionedArchitectureJunction): string {
+function renderJunction(junction: PositionedArchitectureJunction, visual: ArchitectureVisualConfig): string {
   const cx = junction.x + junction.width / 2
   const cy = junction.y + junction.height / 2
 
   return [
     `<g class="architecture-junction" data-id="${escapeAttr(junction.id)}">`,
-    `  <circle class="architecture-junction-ring" cx="${cx}" cy="${cy}" r="${ARCH.junctionOuterRadius}" />`,
-    `  <circle class="architecture-junction-core" cx="${cx}" cy="${cy}" r="${ARCH.junctionInnerRadius}" />`,
+    `  <circle class="architecture-junction-ring" cx="${cx}" cy="${cy}" r="${visual.junctionOuterRadius}" />`,
+    `  <circle class="architecture-junction-core" cx="${cx}" cy="${cy}" r="${visual.junctionInnerRadius}" />`,
     '</g>',
   ].join('\n')
 }
@@ -194,10 +189,10 @@ function renderEdge(edge: PositionedArchitectureEdge): string {
   return `<polyline ${attrs.join(' ')} points="${points}"${markers} />`
 }
 
-function renderEdgeLabel(edge: PositionedArchitectureEdge): string {
+function renderEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig): string {
   const label = edge.label!
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const metrics = measureMultilineText(label, ARCH.edgeFontSize, ARCH.edgeFontWeight)
+  const metrics = measureMultilineText(label, visual.edgeFontSize, visual.edgeFontWeight)
 
   return renderMultilineTextWithBackground(
     label,
@@ -205,9 +200,9 @@ function renderEdgeLabel(edge: PositionedArchitectureEdge): string {
     mid.y,
     metrics.width,
     metrics.height,
-    ARCH.edgeFontSize,
+    visual.edgeFontSize,
     7,
-    `class="architecture-edge-label-text" text-anchor="middle" font-size="${ARCH.edgeFontSize}" font-weight="${ARCH.edgeFontWeight}"`,
+    `class="architecture-edge-label-text" text-anchor="middle" font-size="${visual.edgeFontSize}" font-weight="${visual.edgeFontWeight}"`,
     `class="architecture-edge-label-bg" rx="0" ry="0"`,
   )
 }

@@ -48,12 +48,28 @@ describe('renderMermaidSVG – architecture diagrams', () => {
     expect(svg).not.toContain('NaN')
   })
 
-  it('skips leading comments and escapes multiline labels safely', () => {
+  it('applies Mermaid wrapper theme, font, and architecture sizing config', () => {
     const svg = renderMermaidSVG(`---
 config:
-  theme: base
+  theme: forest
+  themeVariables:
+    background: "#0b1120"
+    clusterBkg: "#111827"
+    clusterBorder: "#38bdf8"
+    mainBkg: "#0f172a"
+    fontFamily: IBM Plex Sans
 ---
-      %%{init: { "theme": "neutral" }}%%
+      %%{init: {
+        "theme": "neutral",
+        "themeVariables": {
+          "lineColor": "#f59e0b",
+          "primaryColor": "#38bdf8"
+        },
+        "architecture": {
+          "iconSize": 26,
+          "fontSize": 16
+        }
+      }}%%
       %% generated sample
       architecture-beta
       group edge(cloud)[Edge<br/>Layer]
@@ -62,6 +78,12 @@ config:
       api:R -[reads <records>]-> L:db`)
 
     expect(svg).toContain('class="architecture-group"')
+    expect(svg).toContain('--bg:#0b1120')
+    expect(svg).toContain('--line:#f59e0b')
+    expect(svg).toContain('--arch-group-fill:#111827')
+    expect(svg).toContain('--arch-service-fill:#0f172a')
+    expect(svg).toContain('family=IBM%20Plex%20Sans')
+    expect(svg).toContain('width="26" height="26"')
     expect(svg).toContain('Edge')
     expect(svg).toContain('Layer')
     expect(svg).toContain('API &amp; &lt;Gateway&gt;')

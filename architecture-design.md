@@ -42,5 +42,7 @@ Architecture-specific work happens after shared placement:
 ## Compatibility Notes
 
 - Mermaid's current public header for this diagram family is `architecture-beta`, so that is the supported header.
-- Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are ignored by the public SVG and ASCII entrypoints and by `parseArchitectureDiagram()`.
-- Architecture diagrams do not currently interpret frontmatter or init config values; they are accepted as source wrappers so Mermaid-authored input parses cleanly without forcing architecture-specific config semantics.
+- Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are stripped by the public SVG and ASCII entrypoints and by `parseArchitectureDiagram()`.
+- The public architecture renderers interpret the merged wrapper config for a focused subset of Mermaid semantics:
+  `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`.
+- `parseArchitectureDiagram()` still treats wrapper config as non-structural input and ignores it after preprocessing, which is intentional because the parser returns only the diagram model.

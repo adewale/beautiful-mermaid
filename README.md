@@ -313,7 +313,7 @@ stateDiagram-v2
 ### Architecture Diagrams
 
 Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
-Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Those wrappers are accepted and ignored for architecture diagrams; see [architecture-design.md](./architecture-design.md).
+Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [architecture-design.md](./architecture-design.md).
 
 ```
 architecture-beta

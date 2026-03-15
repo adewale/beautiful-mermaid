@@ -32,4 +32,23 @@ config:
     expect(ascii).toContain('Database')
     expect(ascii).toContain('┌')
   })
+
+  it('derives HTML colors from Mermaid wrapper theme variables', () => {
+    const ascii = renderMermaidASCII(`---
+config:
+  theme: dark
+  themeVariables:
+    lineColor: "#f59e0b"
+    primaryColor: "#38bdf8"
+---
+      architecture-beta
+      service api(server)[API]
+      service db(database)[Database]
+      api:R --> L:db`, {
+      colorMode: 'html',
+    })
+
+    expect(ascii).toContain('color:#f59e0b')
+    expect(ascii).toContain('color:#38bdf8')
+  })
 })
