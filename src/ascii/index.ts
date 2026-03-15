@@ -84,6 +84,15 @@ function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 's
   return 'flowchart'
 }
 
+function firstSignificantLine(text: string): string {
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim()
+    if (line.length === 0 || line.startsWith('%%')) continue
+    return line.split(';')[0]!.trim().toLowerCase()
+  }
+  return ''
+}
+
 /**
  * Render Mermaid diagram text to an ASCII/Unicode string.
  *

@@ -47,4 +47,19 @@ describe('renderMermaidSVG – architecture diagrams', () => {
     expect(svg).toContain('--bg:var(--background)')
     expect(svg).not.toContain('NaN')
   })
+
+  it('skips leading comments and escapes multiline labels safely', () => {
+    const svg = renderMermaidSVG(`%% generated sample
+      architecture-beta
+      group edge(cloud)[Edge<br/>Layer]
+      service api(server)[API & <Gateway>] in edge
+      service db(database)[Primary DB]
+      api:R -[reads <records>]-> L:db`)
+
+    expect(svg).toContain('class="architecture-group"')
+    expect(svg).toContain('Edge')
+    expect(svg).toContain('Layer')
+    expect(svg).toContain('API &amp; &lt;Gateway&gt;')
+    expect(svg).toContain('reads &lt;records&gt;')
+  })
 })

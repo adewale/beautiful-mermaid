@@ -13,4 +13,18 @@ describe('renderMermaidASCII – architecture diagrams', () => {
     expect(ascii).toContain('Database')
     expect(ascii).toContain('>')
   })
+
+  it('renders architecture diagrams in unicode mode and skips leading comments', () => {
+    const ascii = renderMermaidASCII(`%% generated sample
+      architecture-beta
+      group app(cloud)[Application]
+      service api(server)[API] in app
+      service db(database)[Database]
+      api:R --> L:db`)
+
+    expect(ascii).toContain('Applicati')
+    expect(ascii).toContain('API')
+    expect(ascii).toContain('Database')
+    expect(ascii).toContain('┌')
+  })
 })

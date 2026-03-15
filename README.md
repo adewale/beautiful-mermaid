@@ -313,6 +313,7 @@ stateDiagram-v2
 ### Architecture Diagrams
 
 Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
+Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and leading Mermaid comments before the header. Frontmatter / init directives before the header are not parsed for architecture diagrams yet; see [architecture-design.md](./architecture-design.md).
 
 ```
 architecture-beta
