@@ -9,6 +9,8 @@
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
+import YAML from 'yaml'
+
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
 
@@ -80,7 +82,7 @@ export function preprocessMermaidSource(
   baseFrontmatter: MermaidFrontmatterMap = {},
 ): ProcessedMermaidSource {
   const frontmatterMatch = text.match(FRONTMATTER_REGEX)
-  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseFrontmatter(frontmatterMatch[1]!)) : {}
+  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch[1]!)) : {}
   const rawBody = frontmatterMatch ? text.slice(frontmatterMatch[0].length) : text
   const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
   const frontmatter = mergeFrontmatterMaps(
@@ -252,14 +254,12 @@ function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmat
   return configRoot ? mergeFrontmatterMaps(configRoot, topLevel) : topLevel
 }
 
-function parseFrontmatter(text: string): MermaidFrontmatterMap {
-  const lines = text.split(/\r?\n/)
-  const firstIndex = skipYamlNoise(lines, 0)
-  if (firstIndex >= lines.length) return {}
-
-  const baseIndent = getIndent(lines[firstIndex]!)
-  const state = { lines, index: firstIndex }
-  return parseYamlMap(state, baseIndent).value
+function parseYamlDocument(text: string): MermaidFrontmatterMap {
+  try {
+    return toFrontmatterMap(YAML.parse(text)) ?? {}
+  } catch {
+    return {}
+  }
 }
 
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
@@ -276,7 +276,7 @@ function extractInitDirectives(text: string): { body: string; frontmatter: Merma
 
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {
   try {
-    return toFrontmatterMap(JSON.parse(text))
+    return toFrontmatterMap(YAML.parse(text))
   } catch {
     return parseLooseObjectLiteral(text)
   }
@@ -453,236 +453,6 @@ function splitFlowEntries(text: string): string[] {
   const trailing = current.trim()
   if (trailing) entries.push(trailing)
   return entries
-}
-
-function parseYamlMap(
-  state: { lines: string[]; index: number },
-  indent: number,
-): { value: MermaidFrontmatterMap; index: number } {
-  const map: MermaidFrontmatterMap = {}
-  let index = state.index
-
-  while (index < state.lines.length) {
-    index = skipYamlNoise(state.lines, index)
-    if (index >= state.lines.length) break
-
-    const rawLine = state.lines[index]!
-    const lineIndent = getIndent(rawLine)
-    if (lineIndent < indent) break
-    if (lineIndent > indent) {
-      index++
-      continue
-    }
-
-    const line = rawLine.trim()
-    if (line.startsWith('-')) break
-
-    const colonIdx = findSeparatorIndex(line, ':')
-    if (colonIdx === -1) {
-      index++
-      continue
-    }
-
-    const key = line.slice(0, colonIdx).trim()
-    if (!key) {
-      index++
-      continue
-    }
-
-    const valueText = line.slice(colonIdx + 1).trim()
-    index++
-
-    if (isBlockScalarIndicator(valueText)) {
-      const block = parseYamlBlockScalar(state.lines, index, lineIndent, valueText[0] as '|' | '>')
-      map[key] = block.value
-      index = block.index
-      continue
-    }
-
-    if (valueText.length === 0) {
-      const nested = parseYamlNestedValue(state.lines, index, lineIndent)
-      map[key] = nested.value
-      index = nested.index
-      continue
-    }
-
-    map[key] = parseYamlValue(valueText)
-  }
-
-  state.index = index
-  return { value: map, index }
-}
-
-function parseYamlSequence(
-  state: { lines: string[]; index: number },
-  indent: number,
-): { value: MermaidFrontmatterList; index: number } {
-  const items: MermaidFrontmatterList = []
-  let index = state.index
-
-  while (index < state.lines.length) {
-    index = skipYamlNoise(state.lines, index)
-    if (index >= state.lines.length) break
-
-    const rawLine = state.lines[index]!
-    const lineIndent = getIndent(rawLine)
-    if (lineIndent < indent) break
-    if (lineIndent > indent) {
-      index++
-      continue
-    }
-
-    const line = rawLine.slice(indent).trim()
-    if (!line.startsWith('-')) break
-
-    const valueText = line.slice(1).trim()
-    index++
-
-    if (valueText.length === 0) {
-      const nested = parseYamlNestedValue(state.lines, index, lineIndent)
-      items.push(nested.value)
-      index = nested.index
-      continue
-    }
-
-    if (isBlockScalarIndicator(valueText)) {
-      const block = parseYamlBlockScalar(state.lines, index, lineIndent, valueText[0] as '|' | '>')
-      items.push(block.value)
-      index = block.index
-      continue
-    }
-
-    const colonIdx = findSeparatorIndex(valueText, ':')
-    if (
-      colonIdx !== -1 &&
-      !valueText.startsWith('{') &&
-      !valueText.startsWith('[') &&
-      !valueText.startsWith('"') &&
-      !valueText.startsWith("'")
-    ) {
-      const key = valueText.slice(0, colonIdx).trim()
-      const rawValue = valueText.slice(colonIdx + 1).trim()
-      const item: MermaidFrontmatterMap = {}
-
-      if (isBlockScalarIndicator(rawValue)) {
-        const block = parseYamlBlockScalar(state.lines, index, lineIndent, rawValue[0] as '|' | '>')
-        item[key] = block.value
-        index = block.index
-      } else if (rawValue.length === 0) {
-        const nested = parseYamlNestedValue(state.lines, index, lineIndent)
-        item[key] = nested.value
-        index = nested.index
-      } else {
-        item[key] = parseYamlValue(rawValue)
-      }
-
-      const nestedState = { lines: state.lines, index }
-      const extra = parseYamlMap(nestedState, lineIndent + 2)
-      index = nestedState.index
-      items.push(Object.keys(extra.value).length > 0 ? mergeFrontmatterMaps(item, extra.value) : item)
-      continue
-    }
-
-    items.push(parseYamlValue(valueText))
-  }
-
-  state.index = index
-  return { value: items, index }
-}
-
-function parseYamlNestedValue(
-  lines: string[],
-  startIndex: number,
-  parentIndent: number,
-): { value: MermaidFrontmatterValue; index: number } {
-  const nextIndex = skipYamlNoise(lines, startIndex)
-  if (nextIndex >= lines.length) return { value: {}, index: nextIndex }
-
-  const nextLine = lines[nextIndex]!
-  const indent = getIndent(nextLine)
-  if (indent <= parentIndent) return { value: {}, index: nextIndex }
-
-  const state = { lines, index: nextIndex }
-  if (nextLine.slice(indent).trim().startsWith('-')) {
-    return parseYamlSequence(state, indent)
-  }
-  return parseYamlMap(state, indent)
-}
-
-function parseYamlBlockScalar(
-  lines: string[],
-  startIndex: number,
-  parentIndent: number,
-  mode: '|' | '>',
-): { value: string; index: number } {
-  let index = startIndex
-  const chunks: string[] = []
-  let blockIndent: number | undefined
-
-  while (index < lines.length) {
-    const rawLine = lines[index]!
-    const lineIndent = getIndent(rawLine)
-    if (rawLine.trim().length === 0) {
-      chunks.push('')
-      index++
-      continue
-    }
-    if (lineIndent <= parentIndent) break
-
-    if (blockIndent === undefined) blockIndent = lineIndent
-    chunks.push(rawLine.slice(Math.min(rawLine.length, blockIndent)))
-    index++
-  }
-
-  return {
-    value: mode === '>' ? foldYamlBlockScalar(chunks) : chunks.join('\n'),
-    index,
-  }
-}
-
-function parseYamlValue(text: string): MermaidFrontmatterValue {
-  const flowValue = parseFlowValue(text)
-  return flowValue === undefined ? parseScalar(text) : flowValue
-}
-
-function foldYamlBlockScalar(lines: string[]): string {
-  let result = ''
-  let previousBlank = false
-
-  for (const line of lines) {
-    if (line.length === 0) {
-      result += result.endsWith('\n') || result.length === 0 ? '\n' : '\n\n'
-      previousBlank = true
-      continue
-    }
-
-    if (result.length > 0 && !previousBlank && !result.endsWith('\n')) result += ' '
-    result += line
-    previousBlank = false
-  }
-
-  return result
-}
-
-function skipYamlNoise(lines: string[], index: number): number {
-  let cursor = index
-  while (cursor < lines.length) {
-    const trimmed = lines[cursor]!.trim()
-    if (trimmed.length === 0 || trimmed.startsWith('#')) {
-      cursor++
-      continue
-    }
-    break
-  }
-  return cursor
-}
-
-function getIndent(line: string): number {
-  return line.match(/^\s*/)?.[0].length ?? 0
-}
-
-function isBlockScalarIndicator(valueText: string): valueText is '|' | '>' | '|-' | '>-' | '|+' | '>+' {
-  return /^[|>][-+]?$/.test(valueText)
 }
 
 function findSeparatorIndex(text: string, separator: ':' | ','): number {

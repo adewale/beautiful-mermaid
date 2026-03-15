@@ -477,7 +477,7 @@ It also matches Mermaid's runtime affordances for:
 
 - semicolon-separated xychart statements on a single line
 - Mermaid accessibility directives: `accTitle` and `accDescr`
-- Mermaid YAML frontmatter lists, nested maps, and block scalars
+- Mermaid YAML frontmatter lists, nested maps, anchors, aliases, and block scalars
 - Mermaid-style loose object literals inside `init` / `initialize` directives
 
 ```yaml
