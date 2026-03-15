@@ -76,4 +76,19 @@ describe('timeline ASCII', () => {
     expect(result).toContain('<span style="color:#101010">&lt;alpha&gt;</span>')
     expect(result).not.toContain('Ship <alpha>')
   })
+
+  it('routes timeline ASCII correctly with frontmatter and comment lines', () => {
+    const result = render(`---
+      title: Timeline example
+      ---
+      %% comment before header
+      timeline
+      2022 : Private alpha
+      2023 : Public launch`)
+
+    expect(result).toContain('○ 2022')
+    expect(result).toContain('Private alpha')
+    expect(result).toContain('○ 2023')
+    expect(result).toContain('Public launch')
+  })
 })

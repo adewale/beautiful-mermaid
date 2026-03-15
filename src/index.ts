@@ -35,6 +35,7 @@ import { renderSvg } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS } from './theme.ts'
+import { normalizeMermaidSource } from './mermaid-source.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
@@ -56,9 +57,7 @@ import { renderXYChartSvg } from './xychart/renderer.ts'
  * Detect the diagram type from the mermaid source text.
  * Returns the type keyword used for routing to the correct pipeline.
  */
-function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'xychart' {
-  const firstLine = text.trim().split(/[\n;]/)[0]?.trim().toLowerCase() ?? ''
-
+function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'xychart' {
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
   if (/^timeline\s*$/.test(firstLine)) return 'timeline'
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
@@ -121,13 +120,13 @@ export function renderMermaidSVG(
   // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
   // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
   text = decodeXML(text)
+  const normalizedSource = normalizeMermaidSource(text)
 
   const colors = buildColors(options)
   const font = options.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const diagramType = detectDiagramType(text)
-
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const diagramType = detectDiagramType(normalizedSource.firstLine)
+  const lines = normalizedSource.lines
 
   switch (diagramType) {
     case 'sequence': {
@@ -157,7 +156,7 @@ export function renderMermaidSVG(
     }
     case 'flowchart':
     default: {
-      const graph = parseMermaid(text)
+      const graph = parseMermaid(normalizedSource.text)
       const positioned = layoutGraphSync(graph, options)
       return renderSvg(positioned, colors, font, transparent)
     }

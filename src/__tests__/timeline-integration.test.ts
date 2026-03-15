@@ -102,4 +102,20 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('--fg:var(--foreground)')
     expect(svg).not.toContain('NaN')
   })
+
+  it('routes timeline diagrams correctly with frontmatter and comment lines', () => {
+    const svg = render(`---
+      title: Timeline example
+      ---
+      %% comment before header
+      timeline
+      title Product history
+      2022 : Private alpha
+      2023 : Public launch`)
+
+    expect(svg).toContain('class="timeline-rail"')
+    expect(svg).toContain('Product history')
+    expect(svg).toContain('Private alpha')
+    expect(svg).toContain('Public launch')
+  })
 })

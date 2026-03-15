@@ -5,11 +5,11 @@
  * continuation lines, and error cases.
  */
 import { describe, it, expect } from 'bun:test'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 
 function parse(text: string) {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  return parseTimelineDiagram(lines)
+  return parseTimelineDiagram(normalizeMermaidSource(text).lines)
 }
 
 describe('parseTimelineDiagram', () => {
@@ -85,6 +85,22 @@ describe('parseTimelineDiagram', () => {
     expect(diagram.sections[0]!.label).toBe('Product\nWork')
     expect(diagram.sections[0]!.periods[0]!.label).toBe('2024\nQ1')
     expect(diagram.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+  })
+
+  it('parses timelines after frontmatter and comment lines are stripped', () => {
+    const diagram = parse(`---
+      title: Mermaid demo
+      ---
+      %% comment line
+      timeline
+      2002 : LinkedIn
+      2004 : Facebook : Google`)
+
+    expect(diagram.sections[0]!.periods).toHaveLength(2)
+    expect(diagram.sections[0]!.periods[1]!.events.map(event => event.text)).toEqual([
+      'Facebook',
+      'Google',
+    ])
   })
 
   it('throws when a continuation appears before any period', () => {
