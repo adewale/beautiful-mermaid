@@ -1183,6 +1183,22 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  TIMELINE DIAGRAMS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Timeline: Social Media History',
+    category: 'Timeline',
+    description: 'Mirrors Mermaid’s official introductory timeline example, with each period carrying its own color family.',
+    source: `timeline
+  title History of Social Media Platform
+  2002 : LinkedIn
+  2004 : Facebook : Google
+  2005 : YouTube
+  2006 : Twitter`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  XY CHARTS (xychart-beta)
   // ══════════════════════════════════════════════════════════════════════════
 

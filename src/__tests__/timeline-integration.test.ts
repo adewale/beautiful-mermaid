@@ -9,6 +9,13 @@ function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
 }
 
+const MERMAID_DOCS_SOCIAL_TIMELINE = `timeline
+  title History of Social Media Platform
+  2002 : LinkedIn
+  2004 : Facebook : Google
+  2005 : YouTube
+  2006 : Twitter`
+
 describe('renderMermaidSVG – timeline diagrams', () => {
   it('renders a basic timeline to valid SVG', () => {
     const svg = render(`timeline
@@ -34,9 +41,28 @@ describe('renderMermaidSVG – timeline diagrams', () => {
 
     expect(svg).toContain('class="timeline-section"')
     expect(svg).toContain('data-label="Foundation"')
+    expect(svg).toContain('data-section="Foundation" data-family="0"')
     expect(svg).toContain('data-section="Growth"')
+    expect(svg).toContain('data-section="Growth" data-family="1"')
     expect(svg).toContain('Prototype')
     expect(svg).toContain('Launch')
+  })
+
+  it('renders Mermaid docs social media example with distinct unsectioned color families', () => {
+    const svg = render(MERMAID_DOCS_SOCIAL_TIMELINE)
+    const periodCount = (svg.match(/class="timeline-period"/g) ?? []).length
+    const eventCount = (svg.match(/class="timeline-event"/g) ?? []).length
+    const familyIds = [...svg.matchAll(/class="timeline-period"[\s\S]*?data-family="(\d+)"/g)].map(match => match[1])
+
+    expect(svg).toContain('History of Social Media Platform')
+    expect(svg).toContain('LinkedIn')
+    expect(svg).toContain('Facebook')
+    expect(svg).toContain('Google')
+    expect(svg).toContain('YouTube')
+    expect(svg).toContain('Twitter')
+    expect(periodCount).toBe(4)
+    expect(eventCount).toBe(5)
+    expect(familyIds).toEqual(['0', '1', '2', '3'])
   })
 
   it('renders multiple events for a single period', () => {

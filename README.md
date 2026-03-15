@@ -359,6 +359,17 @@ timeline
   2024 : Timeline support
 ```
 
+Also works with Mermaid's official introductory timeline example:
+
+```
+timeline
+  title History of Social Media Platform
+  2002 : LinkedIn
+  2004 : Facebook : Google
+  2005 : YouTube
+  2006 : Twitter
+```
+
 ### Inline Edge Styling
 
 Use `linkStyle` to override edge colors and stroke widths — just like [Mermaid's linkStyle](https://mermaid.js.org/syntax/flowchart.html#styling-links):
