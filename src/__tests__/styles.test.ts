@@ -59,6 +59,16 @@ describe('svgOpenTag', () => {
     expect(tag).not.toContain('--accent')
     expect(tag).not.toContain('--muted')
   })
+
+  it('adds extra root attributes when requested', () => {
+    const tag = svgOpenTag(400, 300, { bg: '#fff', fg: '#000' }, false, {
+      role: 'img',
+      'aria-labelledby': 'bm-a11y-title',
+    })
+
+    expect(tag).toContain('role="img"')
+    expect(tag).toContain('aria-labelledby="bm-a11y-title"')
+  })
 })
 
 describe('buildStyleBlock', () => {

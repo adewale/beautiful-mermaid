@@ -10,6 +10,8 @@
 //   - Sequence diagrams (sequenceDiagram)
 //   - Class diagrams (classDiagram)
 //   - ER diagrams (erDiagram)
+//   - Timeline diagrams (timeline)
+//   - XY charts (xychart / xychart-beta)
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
 // See src/theme.ts for the full variable system.
@@ -25,6 +27,7 @@ export { fromShikiTheme, THEMES, DEFAULTS } from './theme.ts'
 export { parseMermaid } from './parser.ts'
 export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
+export type { MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig } from './mermaid-source.ts'
 
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
@@ -32,7 +35,9 @@ import { layoutGraphSync } from './layout.ts'
 import { renderSvg } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS } from './theme.ts'
+import { DEFAULTS, THEMES } from './theme.ts'
+import { normalizeMermaidSource } from './mermaid-source.ts'
+import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
@@ -43,6 +48,9 @@ import { renderClassSvg } from './class/renderer.ts'
 import { parseErDiagram } from './er/parser.ts'
 import { layoutErDiagramSync } from './er/layout.ts'
 import { renderErSvg } from './er/renderer.ts'
+import { parseTimelineDiagram } from './timeline/parser.ts'
+import { layoutTimelineDiagram } from './timeline/layout.ts'
+import { renderTimelineSvg } from './timeline/renderer.ts'
 import { parseXYChart } from './xychart/parser.ts'
 import { layoutXYChart } from './xychart/layout.ts'
 import { renderXYChartSvg } from './xychart/renderer.ts'
@@ -51,10 +59,9 @@ import { renderXYChartSvg } from './xychart/renderer.ts'
  * Detect the diagram type from the mermaid source text.
  * Returns the type keyword used for routing to the correct pipeline.
  */
-function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'xychart' {
-  const firstLine = text.trim().split(/[\n;]/)[0]?.trim().toLowerCase() ?? ''
-
+function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'xychart' {
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
+  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
   if (/^classdiagram\s*$/.test(firstLine)) return 'class'
   if (/^erdiagram\s*$/.test(firstLine)) return 'er'
@@ -68,16 +75,32 @@ function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | '
  * Uses DEFAULTS for bg/fg when not provided, and passes through
  * optional enrichment colors (line, accent, muted, surface, border).
  */
-function buildColors(options: RenderOptions): DiagramColors {
+function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): DiagramColors {
+  const theme = config.theme && config.theme in THEMES
+    ? THEMES[config.theme as keyof typeof THEMES]
+    : undefined
+  const vars = config.themeVariables
+
   return {
-    bg: options.bg ?? DEFAULTS.bg,
-    fg: options.fg ?? DEFAULTS.fg,
-    line: options.line,
-    accent: options.accent,
-    muted: options.muted,
-    surface: options.surface,
-    border: options.border,
+    bg: options.bg ?? readThemeValue(vars, 'background', 'mainBkg') ?? theme?.bg ?? DEFAULTS.bg,
+    fg: options.fg ?? readThemeValue(vars, 'primaryTextColor', 'textColor', 'nodeTextColor') ?? theme?.fg ?? DEFAULTS.fg,
+    line: options.line ?? readThemeValue(vars, 'lineColor', 'defaultLinkColor') ?? theme?.line,
+    accent: options.accent ?? readThemeValue(vars, 'arrowheadColor', 'primaryColor') ?? theme?.accent,
+    muted: options.muted ?? readThemeValue(vars, 'secondaryTextColor', 'tertiaryTextColor') ?? theme?.muted,
+    surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
+    border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
   }
+}
+
+function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string[]): string | undefined {
+  if (!vars) return undefined
+
+  for (const key of keys) {
+    const value = vars[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+
+  return undefined
 }
 
 /**
@@ -115,13 +138,16 @@ export function renderMermaidSVG(
   // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
   // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
   text = decodeXML(text)
+  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const colors = buildColors(options)
-  const font = options.font ?? 'Inter'
+  const colors = buildColors(options, normalizedSource.config)
+  const font = options.font
+    ?? normalizedSource.config.fontFamily
+    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
+    ?? 'Inter'
   const transparent = options.transparent ?? false
-  const diagramType = detectDiagramType(text)
-
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const diagramType = detectDiagramType(normalizedSource.firstLine)
+  const lines = normalizedSource.lines
 
   switch (diagramType) {
     case 'sequence': {
@@ -139,6 +165,18 @@ export function renderMermaidSVG(
       const positioned = layoutErDiagramSync(diagram, options)
       return renderErSvg(positioned, colors, font, transparent)
     }
+    case 'timeline': {
+      const diagram = parseTimelineDiagram(lines)
+      const positioned = layoutTimelineDiagram(diagram, options)
+      return renderTimelineSvg(
+        positioned,
+        colors,
+        font,
+        transparent,
+        normalizedSource.config.timeline,
+        normalizedSource.config.themeVariables,
+      )
+    }
     case 'xychart': {
       const chart = parseXYChart(lines)
       const positioned = layoutXYChart(chart, options)
@@ -146,7 +184,7 @@ export function renderMermaidSVG(
     }
     case 'flowchart':
     default: {
-      const graph = parseMermaid(text)
+      const graph = parseMermaid(normalizedSource.text)
       const positioned = layoutGraphSync(graph, options)
       return renderSvg(positioned, colors, font, transparent)
     }

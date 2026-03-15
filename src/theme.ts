@@ -283,6 +283,7 @@ export function svgOpenTag(
   height: number,
   colors: DiagramColors,
   transparent?: boolean,
+  extraAttrs: Record<string, string> = {},
 ): string {
   // Build the style string with only the provided color variables
   const vars = [
@@ -296,9 +297,12 @@ export function svgOpenTag(
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'
+  const attrs = Object.entries(extraAttrs)
+    .map(([key, value]) => ` ${key}="${value}"`)
+    .join('')
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-    `width="${width}" height="${height}" style="${vars}${bgStyle}">`
+    `width="${width}" height="${height}" style="${vars}${bgStyle}"${attrs}>`
   )
 }

@@ -37,7 +37,7 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 
 ## Features
 
-- **6 diagram types** — Flowcharts, State, Sequence, Class, ER, and XY Charts (bar, line, combined)
+- **7 diagram types** — Flowcharts, State, Sequence, Class, ER, Timeline, and XY Charts (bar, line, combined)
 - **Dual output** — SVG for rich UIs, ASCII/Unicode for terminals
 - **Synchronous rendering** — No async, no flash. Works with React `useMemo()`
 - **15 built-in themes** — And dead simple to add your own
@@ -343,6 +343,33 @@ erDiagram
   PRODUCT ||--o{ LINE_ITEM : "is in"
 ```
 
+### Timeline Diagrams
+
+Chronological milestones with optional section grouping — using Mermaid's `timeline` syntax.
+
+```
+timeline
+  title Beautiful Mermaid
+  section Foundation
+  2020 : First prototypes
+  2021 : Internal rollout
+  section Growth
+  2023 : Public launch
+       : Theme system
+  2024 : Timeline support
+```
+
+Also works with Mermaid's official introductory timeline example:
+
+```
+timeline
+  title History of Social Media Platform
+  2002 : LinkedIn
+  2004 : Facebook : Google
+  2005 : YouTube
+  2006 : Twitter
+```
+
 ### Inline Edge Styling
 
 Use `linkStyle` to override edge colors and stroke widths — just like [Mermaid's linkStyle](https://mermaid.js.org/syntax/flowchart.html#styling-links):
@@ -518,8 +545,9 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `componentSpacing` | `number` | `24` | Spacing between disconnected components |
 | `thoroughness` | `number` | `3` | Crossing minimization trials (1-7, higher = better but slower) |
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
 
-**XY Charts:** Diagrams starting with `xychart-beta` are auto-detected — no separate function needed. The `accent` color option drives the chart series color palette.
+**Timeline + XY Charts:** Diagrams starting with `timeline` or `xychart-beta` are auto-detected — no separate function needed. The `accent` color option drives the chart series color palette.
 
 ### `renderMermaidSVGAsync(text, options?): Promise<string>`
 
@@ -539,6 +567,29 @@ Render a Mermaid diagram to ASCII/Unicode text. Synchronous.
 | `boxBorderPadding` | `number` | `1` | Inner box padding |
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'` |
 | `theme` | `Partial<AsciiTheme>` | — | Override default colors for ASCII output |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
+
+### Mermaid Config Support
+
+Both SVG and ASCII rendering accept Mermaid-style runtime config via `options.mermaidConfig`, and also honor leading frontmatter plus Mermaid init directives in the source text.
+
+```ts
+const svg = renderMermaidSVG(source, {
+  mermaidConfig: {
+    fontFamily: 'IBM Plex Sans',
+    timeline: {
+      disableMulticolor: true,
+      sectionFills: ['#224466'],
+      sectionColours: ['#ffffff'],
+    },
+    themeVariables: {
+      cScale0: '#224466',
+      cScaleLabel0: '#ffffff',
+      cScaleInv0: '#99bbdd',
+    },
+  },
+})
+```
 
 ### `parseMermaid(text): MermaidGraph`
 

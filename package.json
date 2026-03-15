@@ -30,6 +30,7 @@
     "sequence-diagram",
     "class-diagram",
     "er-diagram",
+    "timeline-diagram",
     "xychart",
     "state-diagram",
     "visualization",
