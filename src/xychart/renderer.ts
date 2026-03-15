@@ -1,4 +1,4 @@
-import type { PositionedXYChart } from './types.ts'
+import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, estimateTextWidth } from '../styles.ts'
@@ -7,38 +7,17 @@ import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 // ============================================================================
 // XY Chart SVG renderer
 //
-// Renders positioned XY charts to SVG strings.
-// All colors use CSS custom properties (var(--_xxx)) from the theme system.
-//
-// Visual style: clean, minimal, modern. Inspired by Apple/Craft chart design.
-//   - No axis lines or tick marks — labels float freely
-//   - Ultra-subtle solid grid lines
-//   - Bars with rounded tops, flat at baseline
-//   - Smooth curved lines, no visible dots (dots appear on hover)
-//
-// Render order (back to front):
-//   1. Grid lines
-//   2. Bars (as paths with rounded tops)
-//   3. Lines (smooth curves)
-//   4. Dots (hidden by default, visible on hover when interactive)
-//   5. Axis labels
-//   6. Axis titles
-//   7. Chart title
-//   8. Legend
+// Rendered output now tracks Mermaid's own xychart structure more closely:
+// fixed chart dimensions, explicit axis lines/ticks, simple grid lines,
+// straight line segments, and in-bar data labels for bar plots.
 // ============================================================================
 
 const CHART_FONT = {
-  titleSize: 18,
-  titleWeight: 600,
-  axisTitleSize: 15,
-  axisTitleWeight: 500,
-  labelSize: 14,
+  titleWeight: 500,
+  axisTitleWeight: 400,
   labelWeight: 400,
-  legendSize: 14,
-  legendWeight: 400,
-  dotRadius: 5,
-  lineWidth: 2.5,
-  barRadius: 8,
+  dotRadius: 4,
+  lineWidth: 3,
 } as const
 
 const TIP = {
@@ -52,9 +31,6 @@ const TIP = {
   pointerSize: 6,
 } as const
 
-/**
- * Render a positioned XY chart as an SVG string.
- */
 export function renderXYChartSvg(
   chart: PositionedXYChart,
   colors: DiagramColors,
@@ -64,256 +40,184 @@ export function renderXYChartSvg(
 ): string {
   const parts: string[] = []
 
-  // SVG root + base styles
-  // Stamp data-xychart-colors so theme-switching JS knows how many series color vars to update
-  const maxColorIdx = Math.max(0, ...chart.bars.map(b => b.colorIndex), ...chart.lines.map(l => l.colorIndex))
-  const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent)
+  const maxColorIdx = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
+  const svgMeta = buildSvgMetadata(chart)
+  const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent, svgMeta.openTag)
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
   parts.push(svgTag)
   parts.push(buildStyleBlock(font, false))
 
-  // Sparse lines (≤12 points) show dots by default
-  const maxLinePoints = Math.max(...chart.lines.map(l => l.points.length), 0)
-  const sparse = maxLinePoints > 0 && maxLinePoints <= 12
+  const { style, defs } = chartStyles(chart, interactive, colors.accent, colors.bg)
+  parts.push(style)
+  if (defs) parts.push(defs)
+  if (svgMeta.title) parts.push(svgMeta.title)
+  if (svgMeta.description) parts.push(svgMeta.description)
 
-  // Chart-specific styles + gradient defs
-  const { style: chartCss, defs: chartDefs } = chartStyles(chart, interactive, sparse, colors.accent, colors.bg)
-  parts.push(chartCss)
-  if (chartDefs) parts.push(chartDefs)
-
-  // 1. Dot grid (dense dots across plot area, aligned to tick spacing)
-  const { plotArea } = chart
-  const xTicks = chart.xAxis.ticks.map(t => t.x)
-  const yVals = chart.horizontal
-    ? chart.yAxis.ticks.map(t => t.y)
-    : chart.gridLines.map(g => g.y1)
-  const xBase = xTicks.length > 1 ? Math.abs(xTicks[1]! - xTicks[0]!) : plotArea.width / 6
-  const yBase = yVals.length > 1 ? Math.abs(yVals[1]! - yVals[0]!) : plotArea.height / 6
-  const xGap = xBase / Math.max(1, Math.round(xBase / 20))
-  const yGap = yBase / Math.max(1, Math.round(yBase / 20))
-  const xAnchor = xTicks[0] ?? plotArea.x
-  const yAnchor = yVals[0] ?? plotArea.y
-  const xStart = xAnchor - Math.ceil((xAnchor - plotArea.x) / xGap) * xGap
-  const yStart = yAnchor - Math.ceil((yAnchor - plotArea.y) / yGap) * yGap
-  for (let y = yStart; y <= plotArea.y + plotArea.height + 0.5; y += yGap) {
-    for (let x = xStart; x <= plotArea.x + plotArea.width + 0.5; x += xGap) {
-      parts.push(`<circle cx="${r(x)}" cy="${r(y)}" r="1.5" class="xychart-grid"/>`)
-    }
+  for (const gridLine of chart.gridLines) {
+    parts.push(
+      `<line x1="${r(gridLine.x1)}" y1="${r(gridLine.y1)}" x2="${r(gridLine.x2)}" y2="${r(gridLine.y2)}" class="xychart-grid"/>`
+    )
   }
 
-  // 2. Bars — always render bar paths inline (before lines for correct z-order)
-  //    Interactive: also build overlay groups with transparent hit-areas + tooltips (deferred to step 9)
+  renderAxis(parts, chart.xAxis, 'x')
+  renderAxis(parts, chart.yAxis, 'y')
+
   const barOverlay: string[] = []
   for (const bar of chart.bars) {
     const dataAttrs = ` data-value="${bar.value}"${bar.label ? ` data-label="${escapeXml(bar.label)}"` : ''}`
-    const barPath = chart.horizontal
-      ? roundedRightBarPath(bar.x, bar.y, bar.width, bar.height, CHART_FONT.barRadius)
-      : roundedTopBarPath(bar.x, bar.y, bar.width, bar.height, CHART_FONT.barRadius)
     parts.push(
-      `<path d="${barPath}" class="xychart-bar xychart-color-${bar.colorIndex}"${dataAttrs}/>`
+      `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" ` +
+      `class="xychart-bar xychart-color-${bar.colorIndex}"${dataAttrs}/>`
     )
+
     if (interactive) {
       const tipText = formatTipValue(bar.value)
       const tipTitle = bar.label ? `${bar.label}: ${tipText}` : tipText
-      const tip = tooltipAbove(bar.x + bar.width / 2, bar.y, tipText)
+      const tipAnchorX = chart.horizontal ? bar.x + bar.width : bar.x + bar.width / 2
+      const tipAnchorY = chart.horizontal ? bar.y + bar.height / 2 : bar.y
       barOverlay.push(
         `<g class="xychart-bar-group">` +
         `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>` +
         `<title>${escapeXml(tipTitle)}</title>` +
-        tip +
+        tooltipAbove(tipAnchorX, tipAnchorY, tipText) +
         `</g>`
       )
     }
   }
 
-  // 3. Lines — shadow first (wider, low opacity), then crisp line on top
   for (const line of chart.lines) {
     if (line.points.length === 0) continue
-    const d = smoothCurvePath(line.points)
-    parts.push(`<path d="${d}" class="xychart-line-shadow xychart-color-${line.colorIndex}" transform="translate(0,2)"/>`)
-    parts.push(`<path d="${d}" class="xychart-line xychart-color-${line.colorIndex}"/>`)
+    parts.push(`<path d="${polylinePath(line.points)}" class="xychart-line xychart-color-${line.colorIndex}"/>`)
   }
 
-  // 4. Dots — grouped by x-position; interactive groups deferred to overlay
   const dotOverlay: string[] = []
-  if (interactive || sparse) {
-    // Build legend label lookup: line seriesIndex → "Line 1", "Line 2", etc.
-    const lineLegendLabels = new Map<number, string>()
-    for (const item of chart.legend) {
-      if (item.type === 'line') lineLegendLabels.set(item.seriesIndex, item.label)
-    }
-
-    type DotEntry = { x: number; y: number; value: number; label?: string; seriesIndex: number; colorIndex: number }
-    const columns = new Map<string, DotEntry[]>()
-
+  if (interactive) {
     for (const line of chart.lines) {
-      for (const p of line.points) {
-        const key = r(p.x)
-        if (!columns.has(key)) columns.set(key, [])
-        columns.get(key)!.push({ x: p.x, y: p.y, value: p.value, label: p.label, seriesIndex: line.seriesIndex, colorIndex: line.colorIndex })
-      }
-    }
-
-    for (const entries of columns.values()) {
-      const cx = entries[0]!.x
-      const label = entries[0]!.label || ''
-
-      if (interactive && entries.length > 1) {
-        const topY = Math.min(...entries.map(e => e.y))
-        const botY = Math.max(...entries.map(e => e.y))
-        const hitPad = CHART_FONT.dotRadius * 3
-        const hitArea = `<rect x="${r(cx - hitPad)}" y="${r(topY - hitPad)}" width="${r(hitPad * 2)}" height="${r(botY - topY + hitPad * 2)}" fill="transparent" class="xychart-hit"/>`
-        const tipEntries = entries.map(e => ({
-          text: formatTipValue(e.value),
-          legendLabel: lineLegendLabels.get(e.seriesIndex) || `Line ${e.seriesIndex + 1}`,
-        }))
-        const tip = multiTooltipAbove(cx, topY - CHART_FONT.dotRadius, label, tipEntries)
-        const valStrs = tipEntries.map(e => e.text)
-        const titleText = label ? `${label}: ${valStrs.join(' · ')}` : valStrs.join(' · ')
-
-        let group = `<g class="xychart-dot-group">${hitArea}`
-        for (const e of entries) {
-          const dataAttrs = ` data-value="${e.value}"${e.label ? ` data-label="${escapeXml(e.label)}"` : ''}`
-          group += `<circle cx="${r(e.x)}" cy="${r(e.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${e.colorIndex}"${dataAttrs}/>`
-        }
-        group += `<title>${escapeXml(titleText)}</title>${tip}</g>`
-        dotOverlay.push(group)
-
-      } else if (interactive) {
-        const e = entries[0]!
-        const dataAttrs = ` data-value="${e.value}"${e.label ? ` data-label="${escapeXml(e.label)}"` : ''}`
-        const tipText = formatTipValue(e.value)
-        const tipTitle = e.label ? `${e.label}: ${tipText}` : tipText
-        const tip = tooltipAbove(cx, e.y - CHART_FONT.dotRadius, tipText)
-        const hitArea = sparse
-          ? `<circle cx="${r(cx)}" cy="${r(e.y)}" r="${CHART_FONT.dotRadius * 3}" fill="transparent" class="xychart-hit"/>`
-          : ''
+      for (const point of line.points) {
+        const dataAttrs = ` data-value="${point.value}"${point.label ? ` data-label="${escapeXml(point.label)}"` : ''}`
+        const tipText = formatTipValue(point.value)
+        const tipTitle = point.label ? `${point.label}: ${tipText}` : tipText
         dotOverlay.push(
-          `<g class="xychart-dot-group">${hitArea}` +
-          `<circle cx="${r(e.x)}" cy="${r(e.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${e.colorIndex}"${dataAttrs}/>` +
-          `<title>${escapeXml(tipTitle)}</title>${tip}</g>`
+          `<g class="xychart-dot-group">` +
+          `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius * 3}" fill="transparent" class="xychart-hit"/>` +
+          `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}"${dataAttrs}/>` +
+          `<title>${escapeXml(tipTitle)}</title>` +
+          tooltipAbove(point.x, point.y - CHART_FONT.dotRadius, tipText) +
+          `</g>`
         )
-
-      } else {
-        // Sparse, not interactive: static dots render inline
-        for (const e of entries) {
-          const dataAttrs = ` data-value="${e.value}"${e.label ? ` data-label="${escapeXml(e.label)}"` : ''}`
-          parts.push(
-            `<circle cx="${r(e.x)}" cy="${r(e.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${e.colorIndex}"${dataAttrs}/>`
-          )
-        }
       }
     }
   }
 
-  // 5. Axis labels (no axis lines, no tick marks — just floating labels)
-  for (const tick of chart.xAxis.ticks) {
-    parts.push(
-      `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}" ` +
-      `font-size="${CHART_FONT.labelSize}" font-weight="${CHART_FONT.labelWeight}" ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-label">${escapeXml(tick.label)}</text>`
-    )
-  }
-  for (const tick of chart.yAxis.ticks) {
-    parts.push(
-      `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}" ` +
-      `font-size="${CHART_FONT.labelSize}" font-weight="${CHART_FONT.labelWeight}" ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-label">${escapeXml(tick.label)}</text>`
-    )
+  if (chart.config.showDataLabel) {
+    for (const label of buildBarDataLabels(chart.bars, chart.horizontal ?? false)) {
+      parts.push(
+        `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
+        `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
+        `font-size="${label.fontSize}" font-weight="400" class="xychart-data-label">${escapeXml(label.text)}</text>`
+      )
+    }
   }
 
-  // 6. Axis titles
+  renderAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x')
+  renderAxisLabels(parts, chart.yAxis.ticks, chart.yAxis.config.labelFontSize, 'y')
+
   if (chart.xAxis.title) {
-    const t = chart.xAxis.title
-    const transform = t.rotate ? ` transform="rotate(${t.rotate},${t.x},${t.y})"` : ''
+    const title = chart.xAxis.title
+    const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
     parts.push(
-      `<text x="${t.x}" y="${t.y}" text-anchor="middle"${transform} ` +
-      `font-size="${CHART_FONT.axisTitleSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title">${escapeXml(t.text)}</text>`
-    )
-  }
-  if (chart.yAxis.title) {
-    const t = chart.yAxis.title
-    const transform = t.rotate ? ` transform="rotate(${t.rotate},${t.x},${t.y})"` : ''
-    parts.push(
-      `<text x="${t.x}" y="${t.y}" text-anchor="middle"${transform} ` +
-      `font-size="${CHART_FONT.axisTitleSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title">${escapeXml(t.text)}</text>`
+      `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
+      `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
+      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-x-axis-title">${escapeXml(title.text)}</text>`
     )
   }
 
-  // 7. Chart title
+  if (chart.yAxis.title) {
+    const title = chart.yAxis.title
+    const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
+    parts.push(
+      `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
+      `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
+      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-y-axis-title">${escapeXml(title.text)}</text>`
+    )
+  }
+
   if (chart.title) {
     parts.push(
       `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
-      `font-size="${CHART_FONT.titleSize}" font-weight="${CHART_FONT.titleWeight}" ` +
+      `font-size="${chart.config.titleFontSize}" font-weight="${CHART_FONT.titleWeight}" ` +
       `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(chart.title.text)}</text>`
     )
   }
 
-  // 8. Legend
-  for (const item of chart.legend) {
-    const swatchW = 14, swatchH = 14
-    const gap = 6
-    if (item.type === 'bar') {
-      parts.push(
-        `<rect x="${item.x}" y="${item.y - swatchH / 2}" width="${swatchW}" height="${swatchH}" rx="3" ` +
-        `class="xychart-bar xychart-color-${item.colorIndex}"/>`
-      )
-    } else {
-      const ly = item.y
-      parts.push(
-        `<line x1="${item.x}" y1="${ly}" x2="${item.x + swatchW}" y2="${ly}" ` +
-        `stroke-width="${CHART_FONT.lineWidth}" stroke-linecap="round" class="xychart-legend-line xychart-color-${item.colorIndex}"/>`
-      )
-    }
-    parts.push(
-      `<text x="${item.x + swatchW + gap}" y="${item.y}" text-anchor="start" ` +
-      `font-size="${CHART_FONT.legendSize}" font-weight="${CHART_FONT.legendWeight}" ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-label">${escapeXml(item.label)}</text>`
-    )
-  }
-
-  // 9. Interactive overlay — rendered last so tooltips are always on top
-  for (const g of barOverlay) parts.push(g)
-  for (const g of dotOverlay) parts.push(g)
+  for (const group of barOverlay) parts.push(group)
+  for (const group of dotOverlay) parts.push(group)
 
   parts.push('</svg>')
   return parts.join('\n')
 }
 
-// ============================================================================
-// Chart-specific CSS styles
-// ============================================================================
-
-function chartStyles(chart: PositionedXYChart, interactive: boolean, sparse: boolean, themeAccent?: string, bgColor?: string): { style: string; defs: string } {
-  const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
-
-  // Collect all unique global color indices from bars + lines
-  const colorIndices = new Set<number>()
-  for (const b of chart.bars) colorIndices.add(b.colorIndex)
-  for (const l of chart.lines) colorIndices.add(l.colorIndex)
-
-  // Define --xychart-color-N CSS custom properties (updatable by theme-switching JS)
-  // Also define --xychart-bar-fill-N via color-mix() so it stays dynamic on theme change
-  const colorVarDefs: string[] = []
-  for (const idx of [...colorIndices].sort((a, b) => a - b)) {
-    const value = idx === 0
-      ? `var(--accent, ${CHART_ACCENT_FALLBACK})`
-      : getSeriesColor(idx, accentHex, bgColor)
-    colorVarDefs.push(`    --xychart-color-${idx}: ${value};`)
-    colorVarDefs.push(`    --xychart-bar-fill-${idx}: color-mix(in srgb, var(--bg) 75%, var(--xychart-color-${idx}) 25%);`)
+function renderAxis(parts: string[], axis: PositionedXYChart['xAxis'], axisName: 'x' | 'y'): void {
+  if (axis.config.showAxisLine) {
+    parts.push(
+      `<line x1="${r(axis.line.x1)}" y1="${r(axis.line.y1)}" x2="${r(axis.line.x2)}" y2="${r(axis.line.y2)}" ` +
+      `class="xychart-axis-line xychart-${axisName}-axis-line" stroke-width="${axis.config.axisLineWidth}"/>`
+    )
   }
 
-  // Generate unified color rules — one per global index, referencing the CSS vars
+  if (!axis.config.showTick) return
+  for (const tick of axis.ticks) {
+    parts.push(
+      `<line x1="${r(tick.x)}" y1="${r(tick.y)}" x2="${r(tick.tx)}" y2="${r(tick.ty)}" ` +
+      `class="xychart-tick xychart-${axisName}-tick" stroke-width="${axis.config.tickWidth}"/>`
+    )
+  }
+}
+
+function renderAxisLabels(
+  parts: string[],
+  ticks: PositionedXYChart['xAxis']['ticks'],
+  fontSize: number,
+  axisName: 'x' | 'y',
+): void {
+  for (const tick of ticks) {
+    const middleBaseline = tick.textAnchor === 'end' ? ' dominant-baseline="middle"' : ''
+    const dy = tick.textAnchor === 'end' ? '' : ` dy="${TEXT_BASELINE_SHIFT}"`
+    parts.push(
+      `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}"${middleBaseline} ` +
+      `font-size="${fontSize}" font-weight="${CHART_FONT.labelWeight}"${dy} class="xychart-label xychart-${axisName}-label">` +
+      `${escapeXml(tick.label)}</text>`
+    )
+  }
+}
+
+function chartStyles(
+  chart: PositionedXYChart,
+  interactive: boolean,
+  themeAccent?: string,
+  bgColor?: string,
+): { style: string; defs: string } {
+  const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
+  const themeOverrides = chart.theme
+  const colorIndices = new Set<number>()
+  for (const bar of chart.bars) colorIndices.add(bar.colorIndex)
+  for (const line of chart.lines) colorIndices.add(line.colorIndex)
+
+  const colorVarDefs: string[] = []
+  const explicitPalette = themeOverrides.plotColorPalette
+  for (const index of [...colorIndices].sort((a, b) => a - b)) {
+    const value = explicitPalette && explicitPalette.length > 0
+      ? explicitPalette[index % explicitPalette.length]!
+      : (index === 0 ? `var(--accent, ${CHART_ACCENT_FALLBACK})` : getSeriesColor(index, accentHex, bgColor))
+    colorVarDefs.push(`    --xychart-color-${index}: ${value};`)
+  }
+
   const seriesRules: string[] = []
-  for (const idx of [...colorIndices].sort((a, b) => a - b)) {
-    const color = `var(--xychart-color-${idx})`
-    // Bar-specific: stroke + solid blended fill (no opacity)
-    seriesRules.push(`  .xychart-bar.xychart-color-${idx} { stroke: ${color}; fill: var(--xychart-bar-fill-${idx}); }`)
-    // Line/dot-specific: stroke for paths, fill for circles
-    seriesRules.push(`  path.xychart-color-${idx}, line.xychart-color-${idx} { stroke: ${color}; }`)
-    seriesRules.push(`  circle.xychart-color-${idx} { fill: ${color}; }`)
+  for (const index of [...colorIndices].sort((a, b) => a - b)) {
+    const color = `var(--xychart-color-${index})`
+    seriesRules.push(`  .xychart-bar.xychart-color-${index} { fill: ${color}; }`)
+    seriesRules.push(`  path.xychart-color-${index}, line.xychart-color-${index} { stroke: ${color}; }`)
+    seriesRules.push(`  circle.xychart-color-${index} { fill: ${color}; }`)
   }
 
   const tipRules = interactive ? `
@@ -324,218 +228,134 @@ function chartStyles(chart: PositionedXYChart, interactive: boolean, sparse: boo
   .xychart-bar-group:hover .xychart-tip,
   .xychart-dot-group:hover .xychart-tip { opacity: 1; }` : ''
 
+  const titleColor = themeOverrides.titleColor ?? 'var(--_text)'
+  const xAxisLabelColor = themeOverrides.xAxisLabelColor ?? 'var(--_text)'
+  const yAxisLabelColor = themeOverrides.yAxisLabelColor ?? 'var(--_text)'
+  const xAxisTickColor = themeOverrides.xAxisTickColor ?? 'var(--_text-sec)'
+  const yAxisTickColor = themeOverrides.yAxisTickColor ?? 'var(--_text-sec)'
+  const xAxisLineColor = themeOverrides.xAxisLineColor ?? 'var(--_text-sec)'
+  const yAxisLineColor = themeOverrides.yAxisLineColor ?? 'var(--_text-sec)'
+  const xAxisTitleColor = themeOverrides.xAxisTitleColor ?? 'var(--_text)'
+  const yAxisTitleColor = themeOverrides.yAxisTitleColor ?? 'var(--_text)'
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
+  const extraThemeCss = chart.theme.themeCss ? `\n${chart.theme.themeCss}\n` : ''
   const style = `<style>
-  .xychart-grid { fill: var(--_inner-stroke); stroke: none; opacity: 0.65; }
-  .xychart-bar { stroke-width: 1.5; }
+  .xychart-grid { stroke: color-mix(in srgb, var(--fg) 14%, transparent); stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: ${xAxisLineColor}; }
+  .xychart-y-axis-line { stroke: ${yAxisLineColor}; }
+  .xychart-x-tick { stroke: ${xAxisTickColor}; }
+  .xychart-y-tick { stroke: ${yAxisTickColor}; }
+  .xychart-bar { stroke: none; }
   .xychart-line { fill: none; stroke-width: ${CHART_FONT.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-line-shadow { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.12; }
   .xychart-dot { stroke: var(--bg); stroke-width: 2; }
-  .xychart-label { fill: var(--_text-muted); }
-  .xychart-axis-title { fill: var(--_text-sec); }
-  .xychart-title { fill: var(--_text); }${colorVarsBlock}
-${seriesRules.join('\n')}${tipRules}
+  .xychart-label { fill: var(--_text); }
+  .xychart-x-label { fill: ${xAxisLabelColor}; }
+  .xychart-y-label { fill: ${yAxisLabelColor}; }
+  .xychart-axis-title { fill: var(--_text); }
+  .xychart-x-axis-title { fill: ${xAxisTitleColor}; }
+  .xychart-y-axis-title { fill: ${yAxisTitleColor}; }
+  .xychart-title { fill: ${titleColor}; }
+  .xychart-data-label { fill: var(--_text); pointer-events: none; }${colorVarsBlock}
+${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 
   return { style, defs: '' }
 }
 
-
-// ============================================================================
-// Bar path with all corners rounded
-// ============================================================================
-
-function roundedTopBarPath(x: number, y: number, w: number, h: number, radius: number): string {
-  const rr = Math.min(radius, w / 2, h / 2)
-  if (rr <= 0) {
-    return `M${r(x)},${r(y)} h${r(w)} v${r(h)} h${r(-w)} Z`
-  }
-  return [
-    `M${r(x)},${r(y + rr)}`,                                   // start below top-left
-    `Q${r(x)},${r(y)} ${r(x + rr)},${r(y)}`,                   // top-left
-    `L${r(x + w - rr)},${r(y)}`,                                // top edge
-    `Q${r(x + w)},${r(y)} ${r(x + w)},${r(y + rr)}`,           // top-right
-    `L${r(x + w)},${r(y + h - rr)}`,                            // right edge
-    `Q${r(x + w)},${r(y + h)} ${r(x + w - rr)},${r(y + h)}`,   // bottom-right
-    `L${r(x + rr)},${r(y + h)}`,                                // bottom edge
-    `Q${r(x)},${r(y + h)} ${r(x)},${r(y + h - rr)}`,           // bottom-left
-    'Z',
-  ].join(' ')
-}
-
-// ============================================================================
-// Bar path with all corners rounded (for horizontal charts)
-// ============================================================================
-
-function roundedRightBarPath(x: number, y: number, w: number, h: number, radius: number): string {
-  const rr = Math.min(radius, w / 2, h / 2)
-  if (rr <= 0) {
-    return `M${r(x)},${r(y)} h${r(w)} v${r(h)} h${r(-w)} Z`
-  }
-  return [
-    `M${r(x + rr)},${r(y)}`,                                    // start after top-left
-    `L${r(x + w - rr)},${r(y)}`,                                // top edge
-    `Q${r(x + w)},${r(y)} ${r(x + w)},${r(y + rr)}`,           // top-right
-    `L${r(x + w)},${r(y + h - rr)}`,                            // right edge
-    `Q${r(x + w)},${r(y + h)} ${r(x + w - rr)},${r(y + h)}`,   // bottom-right
-    `L${r(x + rr)},${r(y + h)}`,                                // bottom edge
-    `Q${r(x)},${r(y + h)} ${r(x)},${r(y + h - rr)}`,           // bottom-left
-    `L${r(x)},${r(y + rr)}`,                                    // left edge
-    `Q${r(x)},${r(y)} ${r(x + rr)},${r(y)}`,                   // top-left
-    'Z',
-  ].join(' ')
-}
-
-// ============================================================================
-// Smooth line interpolation — Natural cubic spline
-//
-// Computes the mathematically smoothest curve through all data points by
-// minimizing total curvature (integrated second derivative). Treats y as a
-// function of x, so the curve can never go backwards.
-//
-// Algorithm: tridiagonal system for second derivatives (Thomas algorithm),
-// then convert each cubic segment to SVG cubic Bezier commands.
-// ============================================================================
-
-function smoothCurvePath(points: Array<{ x: number; y: number }>): string {
+function polylinePath(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return ''
-  if (points.length === 1) return `M${r(points[0]!.x)},${r(points[0]!.y)}`
-  if (points.length === 2) {
-    return `M${r(points[0]!.x)},${r(points[0]!.y)} L${r(points[1]!.x)},${r(points[1]!.y)}`
-  }
-
-  const n = points.length
-
-  // 1. Interval widths and secant slopes
-  const h: number[] = []
-  const delta: number[] = []
-  for (let i = 0; i < n - 1; i++) {
-    h.push(points[i + 1]!.x - points[i]!.x)
-    delta.push(h[i]! === 0 ? 0 : (points[i + 1]!.y - points[i]!.y) / h[i]!)
-  }
-
-  // 2. Solve tridiagonal system for second derivatives c[] (natural boundary: c[0] = c[n-1] = 0)
-  const c = new Array<number>(n).fill(0)
-  if (n > 2) {
-    // Forward elimination
-    const cp = new Array<number>(n).fill(0) // modified upper diagonal
-    const dp = new Array<number>(n).fill(0) // modified right-hand side
-    for (let i = 1; i < n - 1; i++) {
-      const diag = 2 * (h[i - 1]! + h[i]!)
-      const rhs = 3 * (delta[i]! - delta[i - 1]!)
-      if (i === 1) {
-        cp[i] = h[i]! / diag
-        dp[i] = rhs / diag
-      } else {
-        const w = diag - h[i - 1]! * cp[i - 1]!
-        cp[i] = h[i]! / w
-        dp[i] = (rhs - h[i - 1]! * dp[i - 1]!) / w
-      }
-    }
-    // Back substitution
-    for (let i = n - 2; i >= 1; i--) {
-      c[i] = dp[i]! - cp[i]! * c[i + 1]!
-    }
-  }
-
-  // 3. Compute first derivatives (slopes) at each knot
-  const slopes = new Array<number>(n).fill(0)
-  for (let i = 0; i < n - 1; i++) {
-    slopes[i] = delta[i]! - h[i]! * (2 * c[i]! + c[i + 1]!) / 3
-  }
-  // Slope at last point: derivative of last segment at its end
-  slopes[n - 1] = delta[n - 2]! + h[n - 2]! * (c[n - 2]!) / 3
-
-  // 4. Convert to cubic Bezier — control points strictly between endpoints in x
   let path = `M${r(points[0]!.x)},${r(points[0]!.y)}`
-  for (let i = 0; i < n - 1; i++) {
-    const seg = h[i]! / 3
-    const cp1x = points[i]!.x + seg
-    const cp1y = points[i]!.y + slopes[i]! * seg
-    const cp2x = points[i + 1]!.x - seg
-    const cp2y = points[i + 1]!.y - slopes[i + 1]! * seg
-    path += ` C${r(cp1x)},${r(cp1y)} ${r(cp2x)},${r(cp2y)} ${r(points[i + 1]!.x)},${r(points[i + 1]!.y)}`
+  for (let i = 1; i < points.length; i++) {
+    path += ` L${r(points[i]!.x)},${r(points[i]!.y)}`
   }
-
   return path
 }
 
-// ============================================================================
-// Tooltip rendering
-// ============================================================================
+function buildBarDataLabels(
+  bars: PositionedBar[],
+  horizontal: boolean,
+): Array<{
+  x: number
+  y: number
+  text: string
+  anchor: 'middle' | 'end'
+  fontSize: number
+  dominantBaseline?: 'middle' | 'hanging'
+}> {
+  const visibleBars = bars.filter(bar => bar.width > 0 && bar.height > 0)
+  if (visibleBars.length === 0) return []
 
-/**
- * Multi-value tooltip: category label on top, each series value below with legend text label.
- */
-function multiTooltipAbove(cx: number, topY: number, label: string, entries: Array<{ text: string; legendLabel: string }>): string {
-  const lineH = 20
-  const padY = 6
-  const labelGap = 10
-  const headingW = estimateTextWidth(label, TIP.fontSize, 600)
-  const maxRowW = Math.max(...entries.map(e => {
-    const legendW = estimateTextWidth(e.legendLabel, TIP.fontSize, TIP.fontWeight)
-    const valW = estimateTextWidth(e.text, TIP.fontSize, TIP.fontWeight)
-    return legendW + labelGap + valW
-  }))
-  const bgW = Math.max(headingW, maxRowW) + TIP.padX * 2
-  const bgH = padY + lineH + entries.length * lineH + padY
+  const texts = visibleBars.map(bar => formatTipValue(bar.value))
+  const candidates = visibleBars.map((bar, index) => {
+    const text = texts[index]!
+    if (horizontal) {
+      const widthFit = Math.max(0, (bar.width - 12) / Math.max(1, text.length * 0.62))
+      return Math.min(bar.height * 0.72, widthFit)
+    }
+    const widthFit = Math.max(0, (bar.width - 8) / Math.max(1, text.length * 0.62))
+    const heightFit = Math.max(0, bar.height - 10)
+    return Math.min(widthFit, heightFit)
+  })
 
-  const tipY = Math.max(TIP.minY, topY - TIP.offsetY - bgH - TIP.pointerSize)
-  const bgX = cx - bgW / 2
+  const rawFontSize = Math.floor(Math.min(...candidates))
+  if (!Number.isFinite(rawFontSize) || rawFontSize < 8) return []
+  const fontSize = Math.min(16, rawFontSize)
 
-  const ptrX = cx
-  const ptrY = tipY + bgH
-  const ps = TIP.pointerSize
-  const pointer = `<polygon points="${r(ptrX - ps)},${r(ptrY)} ${r(ptrX + ps)},${r(ptrY)} ${r(ptrX)},${r(ptrY + ps)}" class="xychart-tip xychart-tip-ptr"/>`
-
-  let svg = `<rect x="${r(bgX)}" y="${r(tipY)}" width="${r(bgW)}" height="${bgH}" rx="${TIP.rx}" class="xychart-tip xychart-tip-bg"/>`
-  svg += pointer
-
-  // Category label (bold, centered)
-  let textY = tipY + padY + lineH / 2
-  svg += `<text x="${r(cx)}" y="${r(textY)}" text-anchor="middle" font-weight="600" font-size="${TIP.fontSize}" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(label)}</text>`
-
-  // Value lines: legend label left-aligned, value right-aligned
-  const rowLeft = bgX + TIP.padX
-  const rowRight = bgX + bgW - TIP.padX
-  for (const entry of entries) {
-    textY += lineH
-    svg += `<text x="${r(rowLeft)}" y="${r(textY)}" text-anchor="start" font-size="${TIP.fontSize}" font-weight="${TIP.fontWeight}" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(entry.legendLabel)}</text>`
-    svg += `<text x="${r(rowRight)}" y="${r(textY)}" text-anchor="end" font-size="${TIP.fontSize}" font-weight="${TIP.fontWeight}" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(entry.text)}</text>`
-  }
-
-  return svg
+  return visibleBars.map((bar, index) => horizontal
+    ? {
+      x: bar.x + bar.width - 8,
+      y: bar.y + bar.height / 2,
+      text: texts[index]!,
+      anchor: 'end',
+      fontSize,
+      dominantBaseline: 'middle',
+    }
+    : {
+      x: bar.x + bar.width / 2,
+      y: bar.y + 8,
+      text: texts[index]!,
+      anchor: 'middle',
+      fontSize,
+      dominantBaseline: 'hanging',
+    })
 }
 
 function tooltipAbove(cx: number, topY: number, text: string): string {
   const textW = estimateTextWidth(text, TIP.fontSize, TIP.fontWeight)
   const bgW = textW + TIP.padX * 2
-  const bgH = TIP.height
-  const tipY = Math.max(TIP.minY, topY - TIP.offsetY - bgH - TIP.pointerSize)
   const bgX = cx - bgW / 2
-  const textX = cx
-  const textY = tipY + bgH / 2
+  let bgY = topY - TIP.offsetY - TIP.height
+  let ptrY = bgY + TIP.height
 
-  const ptrX = cx
-  const ptrY = tipY + bgH
-  const ps = TIP.pointerSize
-  const pointer = `<polygon points="${r(ptrX - ps)},${r(ptrY)} ${r(ptrX + ps)},${r(ptrY)} ${r(ptrX)},${r(ptrY + ps)}" class="xychart-tip xychart-tip-ptr"/>`
+  if (bgY < TIP.minY) {
+    bgY = TIP.minY
+    ptrY = bgY + TIP.height
+  }
+
+  const textX = cx
+  const textY = bgY + TIP.height / 2
+  const p = TIP.pointerSize
+  const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
 
   return (
-    `<rect x="${r(bgX)}" y="${r(tipY)}" width="${r(bgW)}" height="${bgH}" rx="${TIP.rx}" class="xychart-tip xychart-tip-bg"/>` +
-    pointer +
-    `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(text)}</text>`
+    `<g class="xychart-tip">` +
+    `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="xychart-tip xychart-tip-bg"/>` +
+    `<path d="${ptrPath}" class="xychart-tip xychart-tip-ptr"/>` +
+    `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(text)}</text>` +
+    `</g>`
   )
 }
 
-function formatTipValue(v: number): string {
-  if (Number.isInteger(v)) return v.toLocaleString('en-US')
-  return v.toFixed(Math.abs(v) < 10 ? 1 : 0)
+function formatTipValue(value: number): string {
+  if (Number.isInteger(value)) return String(value)
+  return value.toFixed(Math.abs(value) < 10 ? 1 : 0)
 }
 
-function r(n: number): string {
-  return String(Math.round(n * 10) / 10)
+function r(value: number): string {
+  return (Math.round(value * 100) / 100).toString()
 }
 
 function escapeXml(text: string): string {
@@ -546,4 +366,56 @@ function escapeXml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function buildSvgMetadata(chart: PositionedXYChart): {
+  openTag: Parameters<typeof svgOpenTag>[4]
+  title?: string
+  description?: string
+} {
+  const svgId = `mermaid-${hashChart(chart)}`
+  const accTitleId = chart.accessibility?.title ? `chart-title-${svgId}` : undefined
+  const accDescId = chart.accessibility?.description ? `chart-desc-${svgId}` : undefined
+  const responsiveWidth = chart.config.useWidth ?? chart.width
+  const width = chart.config.useMaxWidth ? '100%' : String(responsiveWidth)
+  const height = chart.config.useMaxWidth
+    ? '100%'
+    : String(Math.round(chart.height * (responsiveWidth / Math.max(1, chart.width))))
+  const style = chart.config.useMaxWidth ? `max-width:${responsiveWidth}px` : undefined
 
+  return {
+    openTag: {
+      width,
+      height,
+      style,
+      attrs: {
+        id: svgId,
+        class: 'xychart',
+        'aria-roledescription': 'xychart',
+        'aria-labelledby': accTitleId,
+        'aria-describedby': accDescId,
+      },
+    },
+    title: chart.accessibility?.title
+      ? `<title id="${accTitleId}">${escapeXml(chart.accessibility.title)}</title>`
+      : undefined,
+    description: chart.accessibility?.description
+      ? `<desc id="${accDescId}">${escapeXml(chart.accessibility.description)}</desc>`
+      : undefined,
+  }
+}
+
+function hashChart(chart: PositionedXYChart): string {
+  const text = [
+    chart.width,
+    chart.height,
+    chart.title?.text ?? '',
+    chart.accessibility?.title ?? '',
+    chart.accessibility?.description ?? '',
+    chart.bars.length,
+    chart.lines.length,
+  ].join('|')
+  let hash = 5381
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash) ^ text.charCodeAt(i)
+  }
+  return Math.abs(hash >>> 0).toString(36)
+}

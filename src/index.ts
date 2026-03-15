@@ -75,10 +75,26 @@ function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class
  * Uses DEFAULTS for bg/fg when not provided, and passes through
  * optional enrichment colors (line, accent, muted, surface, border).
  */
+const ZINC_DARK = THEMES['zinc-dark'] ?? { bg: '#18181B', fg: '#FAFAFA' }
+
+const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
+  default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
+  base: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
+  neutral: { bg: '#ffffff', fg: '#1f2937', line: '#9ca3af', accent: '#6b7280', muted: '#6b7280' },
+  dark: {
+    bg: ZINC_DARK.bg,
+    fg: ZINC_DARK.fg,
+    line: ZINC_DARK.line,
+    accent: ZINC_DARK.accent,
+    muted: ZINC_DARK.muted,
+    surface: ZINC_DARK.surface,
+    border: ZINC_DARK.border,
+  },
+  forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
+}
+
 function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): DiagramColors {
-  const theme = config.theme && config.theme in THEMES
-    ? THEMES[config.theme as keyof typeof THEMES]
-    : undefined
+  const theme = resolveThemeColors(config.theme)
   const vars = config.themeVariables
 
   return {
@@ -90,6 +106,12 @@ function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): Diag
     surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
     border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
   }
+}
+
+function resolveThemeColors(themeName: string | undefined): DiagramColors | undefined {
+  if (!themeName) return undefined
+  if (themeName in THEMES) return THEMES[themeName as keyof typeof THEMES]
+  return MERMAID_THEME_COLORS[themeName.toLowerCase()]
 }
 
 function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string[]): string | undefined {
@@ -178,9 +200,12 @@ export function renderMermaidSVG(
       )
     }
     case 'xychart': {
-      const chart = parseXYChart(lines)
+      const chart = parseXYChart(lines, normalizedSource.frontmatter)
       const positioned = layoutXYChart(chart, options)
-      return renderXYChartSvg(positioned, colors, font, transparent, options.interactive ?? false)
+      const chartColors = !options.bg && chart.theme.backgroundColor
+        ? { ...colors, bg: chart.theme.backgroundColor }
+        : colors
+      return renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false)
     }
     case 'flowchart':
     default: {

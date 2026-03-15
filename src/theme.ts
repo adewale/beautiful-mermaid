@@ -283,7 +283,12 @@ export function svgOpenTag(
   height: number,
   colors: DiagramColors,
   transparent?: boolean,
-  extraAttrs: Record<string, string> = {},
+  extra?: Record<string, string> | {
+    width?: string
+    height?: string
+    style?: string
+    attrs?: Record<string, string | undefined>
+  },
 ): string {
   // Build the style string with only the provided color variables
   const vars = [
@@ -297,12 +302,36 @@ export function svgOpenTag(
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'
-  const attrs = Object.entries(extraAttrs)
-    .map(([key, value]) => ` ${key}="${value}"`)
-    .join('')
+  const overrides = isSvgOpenTagOverrides(extra) ? extra : undefined
+  const attrs = overrides?.attrs ?? (extra as Record<string, string> | undefined) ?? {}
+  const style = `${vars}${bgStyle}${overrides?.style ? `;${overrides.style}` : ''}`
+  const extraAttrs = Object.entries(attrs)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}="${value}"`)
+    .join(' ')
+  const attrBlock = extraAttrs ? ` ${extraAttrs}` : ''
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-    `width="${width}" height="${height}" style="${vars}${bgStyle}"${attrs}>`
+    `width="${overrides?.width ?? width}" height="${overrides?.height ?? height}" style="${style}"${attrBlock}>`
+  )
+}
+
+function isSvgOpenTagOverrides(
+  value: Record<string, string> | {
+    width?: string
+    height?: string
+    style?: string
+    attrs?: Record<string, string | undefined>
+  } | undefined,
+): value is {
+  width?: string
+  height?: string
+  style?: string
+  attrs?: Record<string, string | undefined>
+} {
+  return Boolean(
+    value &&
+    ('width' in value || 'height' in value || 'style' in value || 'attrs' in value),
   )
 }
