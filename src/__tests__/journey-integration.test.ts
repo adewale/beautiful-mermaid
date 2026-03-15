@@ -26,6 +26,22 @@ describe('renderMermaidSVG – journey diagrams', () => {
     expect(svg).toContain('class="journey-actor-pill"')
   })
 
+  it('routes journey diagrams through frontmatter and Mermaid init directives', () => {
+    const svg = render(`---
+      title: Journey sample
+      config:
+        theme: dark
+      ---
+      %%{init: {'theme': 'base'}}%%
+      journey
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('class="journey-task"')
+    expect(svg).toContain('Make tea')
+  })
+
   it('emits semantic data attributes for section, score, and actors', () => {
     const svg = render(`journey
       section Go to work

@@ -2,14 +2,15 @@
  * Tests for the journey diagram parser.
  *
  * Covers: title, sections, implicit sections, actor parsing, <br> handling,
- * optional actor lists, and invalid scores.
+ * comments/directives/frontmatter preprocessing, optional actor lists, and
+ * invalid scores.
  */
 import { describe, it, expect } from 'bun:test'
+import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 
 function parse(text: string) {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  return parseJourneyDiagram(lines)
+  return parseJourneyDiagram(preprocessMermaidLines(text))
 }
 
 describe('parseJourneyDiagram', () => {
@@ -57,6 +58,36 @@ describe('parseJourneyDiagram', () => {
     expect(diagram.sections[0]!.label).toBe('Go\nto work')
     expect(diagram.sections[0]!.tasks[0]!.text).toBe('Make\ntea')
     expect(diagram.sections[0]!.tasks[0]!.actors).toEqual(['Me / Team'])
+  })
+
+  it('normalizes quoted labels the same way Mermaid labels are normalized elsewhere', () => {
+    const diagram = parse(`journey
+      title "My working day"
+      section "Go to work"
+      "Make tea": 5: "Me"`)
+
+    expect(diagram.title).toBe('My working day')
+    expect(diagram.sections[0]!.label).toBe('Go to work')
+    expect(diagram.sections[0]!.tasks[0]!.text).toBe('Make tea')
+    expect(diagram.sections[0]!.tasks[0]!.actors).toEqual(['Me'])
+  })
+
+  it('ignores Mermaid comments, frontmatter, and init directives before the journey header', () => {
+    const diagram = parse(`---
+      title: Journey sample
+      config:
+        theme: dark
+      ---
+      %%{init: {'theme': 'base'}}%%
+      %% comment before header
+      journey
+      %% comment inside body
+      section Go to work
+      Make tea: 5: Me`)
+
+    expect(diagram.sections).toHaveLength(1)
+    expect(diagram.sections[0]!.label).toBe('Go to work')
+    expect(diagram.sections[0]!.tasks[0]!.text).toBe('Make tea')
   })
 
   it('allows tasks without actor lists', () => {

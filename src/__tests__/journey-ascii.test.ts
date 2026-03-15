@@ -30,6 +30,21 @@ describe('journey ASCII', () => {
     expect(result).toContain('by Me, QA')
   })
 
+  it('supports journey routing through frontmatter and Mermaid init directives', () => {
+    const result = render(`---
+      title: Journey sample
+      config:
+        theme: dark
+      ---
+      %%{init: {'theme': 'base'}}%%
+      journey
+      section Work
+      Deep work: 3: Me`)
+
+    expect(result).toContain('[Work]')
+    expect(result).toContain('●●●○○ Deep work')
+  })
+
   it('uses ASCII-safe glyphs in ASCII mode', () => {
     const result = render(`journey
       section Work
