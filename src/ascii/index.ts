@@ -129,7 +129,7 @@ export function renderMermaidASCII(
 
   switch (diagramType) {
     case 'xychart':
-      return renderXYChartAscii(normalizedSource.text, config, colorMode, theme)
+      return renderXYChartAscii(normalizedSource.text, config, colorMode, theme, normalizedSource.frontmatter)
 
     case 'sequence':
       return renderSequenceAscii(normalizedSource.text, config, colorMode, theme)

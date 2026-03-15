@@ -393,12 +393,12 @@ Works in both flowcharts and state diagrams.
 
 ### XY Charts
 
-Bar charts, line charts, and combinations — using Mermaid's `xychart-beta` syntax.
+Bar charts, line charts, and combinations — using Mermaid's current `xychart` syntax. `xychart-beta` remains accepted for backward compatibility.
 
 **Bar chart:**
 
 ```
-xychart-beta
+xychart
     title "Monthly Revenue"
     x-axis [Jan, Feb, Mar, Apr, May, Jun]
     y-axis "Revenue ($K)" 0 --> 500
@@ -408,7 +408,7 @@ xychart-beta
 **Line chart:**
 
 ```
-xychart-beta
+xychart
     title "User Growth"
     x-axis [Jan, Feb, Mar, Apr, May, Jun]
     line [1200, 1800, 2500, 3100, 3800, 4500]
@@ -417,7 +417,7 @@ xychart-beta
 **Combined bar + line:**
 
 ```
-xychart-beta
+xychart
     title "Sales with Trend"
     x-axis [Jan, Feb, Mar, Apr, May, Jun]
     bar [300, 380, 280, 450, 350, 520]
@@ -427,7 +427,7 @@ xychart-beta
 **Horizontal orientation:**
 
 ```
-xychart-beta horizontal
+xychart horizontal
     title "Language Popularity"
     x-axis [Python, JavaScript, Java, Go, Rust]
     bar [30, 25, 20, 12, 8]
@@ -440,22 +440,72 @@ xychart-beta horizontal
 - Axis titles: `x-axis "Category" [A, B, C]`
 - Y-axis range: `y-axis "Score" 0 --> 100`
 
+**Beautiful Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
+
+- `config.useMaxWidth` / `config.useWidth`
+- `config.xyChart.width` / `config.xyChart.height` as total chart size
+- `config.xyChart.titleFontSize` / `config.xyChart.titlePadding`
+- `config.xyChart.showDataLabel`
+- `config.xyChart.showTitle`
+- `config.xyChart.chartOrientation`
+- `config.xyChart.plotReservedSpacePercent`
+- `config.xyChart.xAxis.showLabel` / `showTitle`
+- `config.xyChart.xAxis.labelFontSize` / `labelPadding`
+- `config.xyChart.xAxis.titleFontSize` / `titlePadding`
+- `config.xyChart.xAxis.showTick` / `tickLength` / `tickWidth`
+- `config.xyChart.xAxis.showAxisLine` / `axisLineWidth`
+- `config.xyChart.yAxis.showLabel` / `showTitle`
+- `config.xyChart.yAxis.labelFontSize` / `labelPadding`
+- `config.xyChart.yAxis.titleFontSize` / `titlePadding`
+- `config.xyChart.yAxis.showTick` / `tickLength` / `tickWidth`
+- `config.xyChart.yAxis.showAxisLine` / `axisLineWidth`
+- `config.themeVariables.xyChart.backgroundColor`
+- `config.themeVariables.xyChart.titleColor`
+- `config.themeVariables.xyChart.xAxisLabelColor`
+- `config.themeVariables.xyChart.xAxisTickColor`
+- `config.themeVariables.xyChart.xAxisLineColor`
+- `config.themeVariables.xyChart.xAxisTitleColor`
+- `config.themeVariables.xyChart.yAxisLabelColor`
+- `config.themeVariables.xyChart.yAxisTickColor`
+- `config.themeVariables.xyChart.yAxisLineColor`
+- `config.themeVariables.xyChart.yAxisTitleColor`
+- `config.themeVariables.xyChart.plotColorPalette`
+- `config.themeCSS`
+- top-level Mermaid `theme` / `fontFamily` values when supplied through YAML frontmatter or `init` / `initialize` directives
+
+It also matches Mermaid's runtime affordances for:
+
+- semicolon-separated xychart statements on a single line
+- Mermaid accessibility directives: `accTitle` and `accDescr`
+- Mermaid YAML frontmatter lists, nested maps, and block scalars
+- Mermaid-style loose object literals inside `init` / `initialize` directives
+
+```yaml
+---
+config:
+  xyChart:
+    showDataLabel: true
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#ff6b6b, #0ea5e9"
+---
+```
+
 **Multi-series:** Add multiple `bar` and/or `line` declarations. Each series gets a distinct color from a monochromatic palette derived from the theme's accent color.
 
 ### XY Chart Styling
 
-The chart renderer follows a clean, minimal design philosophy inspired by Apple and Craft:
+The current xychart renderer stays intentionally close to Mermaid while still following Beautiful Mermaid's theme system and spacing standards:
 
-- **Dot grid** — A subtle dot pattern fills the plot area instead of traditional solid grid lines
-- **Rounded bars** — All bar corners are rounded for a modern, polished look
-- **Smooth curves** — Line series use natural cubic spline interpolation, producing mathematically smooth curves through all data points (not straight segments or staircase steps)
-- **Floating labels** — No visible axis lines or tick marks; labels float freely for a clutter-free aesthetic
-- **Drop-shadow lines** — Each line series has a subtle shadow beneath it for depth
-- **Monochromatic palette** — Series 0 uses the theme's accent color; additional series get darker/lighter shades of the same hue with subtle hue drift, adapting automatically to light or dark backgrounds
-- **Interactive tooltips** — When rendered with `interactive: true`, hovering over bars or data points shows value tooltips. Multi-line tooltips appear when multiple series share an x-position
-- **Sparse line dots** — Lines with 12 or fewer data points show data point dots by default for readability
-- **Full theme support** — All 15 built-in themes (and custom themes) apply to charts. The accent color drives the entire series color palette
-- **Live theme switching** — Chart series colors are CSS custom properties (`--xychart-color-N`), so theme changes apply instantly without re-rendering
+- **Explicit axes and ticks** - Axis lines and tick marks are rendered by default, with Mermaid frontmatter available to hide or restyle them
+- **Shared Mermaid config entry points** - The same supported xychart config/theme subset works through YAML frontmatter and Mermaid `init` / `initialize` directives
+- **Accessible SVG metadata** - `accTitle` / `accDescr` are emitted as root SVG `<title>` / `<desc>` metadata with Mermaid-style labeling attributes
+- **Clean grid lines** - The plot uses subtle guide lines instead of a decorative dot field so numeric reading stays easy
+- **Straight line segments** - Line series connect points directly, matching Mermaid's own xychart geometry
+- **Bar-only data labels** - `showDataLabel` labels bars, matching Mermaid behavior and avoiding clutter on line charts
+- **Opt-in interactivity** - `interactive: true` adds hover targets, dots, and tooltips for bars and line points without changing the static SVG structure
+- **Theme-driven palette** - Series colors come from the accent color by default, or from Mermaid `plotColorPalette` when frontmatter provides one
+- **Live theme switching** - Chart series colors are CSS custom properties (`--xychart-color-N`), so theme changes apply instantly without re-rendering
 
 ---
 
@@ -547,7 +597,7 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
 
-**Timeline + XY Charts:** Diagrams starting with `timeline` or `xychart-beta` are auto-detected — no separate function needed. The `accent` color option drives the chart series color palette.
+**Timeline + XY Charts:** Diagrams starting with `timeline`, `xychart`, or `xychart-beta` are auto-detected — no separate function needed. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
 
 ### `renderMermaidSVGAsync(text, options?): Promise<string>`
 

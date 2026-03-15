@@ -1,7 +1,7 @@
 // ============================================================================
 // ASCII renderer — XY Chart
 //
-// Renders xychart-beta diagrams to ASCII/Unicode text art.
+// Renders xychart / xychart-beta diagrams to ASCII/Unicode text art.
 // Uses the parsed XYChart type directly (not PositionedXYChart) since
 // pixel coordinates don't map to character grids.
 //
@@ -13,9 +13,10 @@
 
 import { parseXYChart } from '../xychart/parser.ts'
 import type { XYChart } from '../xychart/types.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas } from './types.ts'
 import { colorizeText } from './ansi.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
+import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 
 // ============================================================================
 // Constants
@@ -62,7 +63,13 @@ const ASC = {
 type HexCanvas = (string | null)[][]
 
 /** Generate an array of hex colors, one per series. */
-function getSeriesColors(total: number, theme: AsciiTheme): string[] {
+function getSeriesColors(total: number, theme: AsciiTheme, palette?: string[]): string[] {
+  if (palette && palette.length > 0) {
+    const usable = palette.filter(isValidHex)
+    if (usable.length > 0) {
+      return Array.from({ length: total }, (_, i) => usable[i % usable.length]!)
+    }
+  }
   const accent = theme.accent ?? CHART_ACCENT_FALLBACK
   if (total <= 1) return [accent]
   return Array.from({ length: total }, (_, i) => getSeriesColor(i, accent, theme.bg))
@@ -90,9 +97,10 @@ export function renderXYChartAscii(
   config: AsciiConfig,
   colorMode: ColorMode,
   theme: AsciiTheme,
+  frontmatter: MermaidFrontmatterMap = {},
 ): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const chart = parseXYChart(lines)
+  const chart = parseXYChart(lines, frontmatter)
   const ch = config.useAscii ? ASC : UNI
 
   if (chart.horizontal) {
@@ -117,7 +125,9 @@ function renderVertical(
   const yRange = chart.yAxis.range!
   const yTicks = niceTickValues(yRange.min, yRange.max)
   const yLabels = yTicks.map(v => formatTickValue(v))
-  const yGutter = Math.max(...yLabels.map(l => l.length)) + 1
+  const showYLabels = chart.config.yAxis?.showLabel !== false
+  const showXLabels = chart.config.xAxis?.showLabel !== false
+  const yGutter = showYLabels ? Math.max(...yLabels.map(l => l.length)) + 1 : 0
 
   const plotW = Math.max(PLOT_WIDTH, dataCount * 6)
   const plotH = PLOT_HEIGHT
@@ -125,17 +135,17 @@ function renderVertical(
   const catLabels = getCategoryLabels(chart, dataCount)
 
   // Canvas dimensions
-  const hasTitle = !!chart.title
-  const hasXTitle = !!chart.xAxis.title
+  const hasTitle = !!chart.title && chart.config.showTitle !== false
+  const hasXTitle = !!chart.xAxis.title && chart.config.xAxis?.showTitle !== false
   const hasLegend = chart.series.length > 1
   const titleRow = hasTitle ? 0 : -1
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
   const plotLeft = yGutter + 1 // +1 for axis character
   const totalW = plotLeft + bandW * dataCount + 2
   const xAxisRow = plotTop + plotH
-  const xLabelRow = xAxisRow + 1
-  const xTitleRow = hasXTitle ? xLabelRow + 1 : -1
-  const totalH = xLabelRow + 1 + (hasXTitle ? 1 : 0) + (hasLegend && !hasTitle ? 0 : 0)
+  const xLabelRow = showXLabels ? xAxisRow + 1 : -1
+  const xTitleRow = hasXTitle ? xAxisRow + (showXLabels ? 2 : 1) : -1
+  const totalH = xAxisRow + 1 + (showXLabels ? 1 : 0) + (hasXTitle ? 1 : 0)
 
   // Create canvas
   const canvas = createCanvas(totalW, totalH)
@@ -143,7 +153,7 @@ function renderVertical(
   const hexColors = createHexCanvas(totalW, totalH)
 
   // Series colors
-  const seriesColors = getSeriesColors(chart.series.length, theme)
+  const seriesColors = getSeriesColors(chart.series.length, theme, chart.theme.plotColorPalette)
 
   // Scales
   const valueToRow = (v: number): number => {
@@ -179,8 +189,10 @@ function renderVertical(
     // Tick mark on axis
     set(canvas, roles, displayRow, plotLeft - 1, row === 0 ? ch.origin : ch.yTick, 'border')
     // Label
-    const labelStart = yGutter - label.length
-    writeText(canvas, roles, displayRow, Math.max(0, labelStart), label, 'text')
+    if (showYLabels) {
+      const labelStart = yGutter - label.length
+      writeText(canvas, roles, displayRow, Math.max(0, labelStart), label, 'text')
+    }
   }
 
   // 4. X-axis line + ticks + labels
@@ -190,10 +202,11 @@ function renderVertical(
   for (let i = 0; i < dataCount; i++) {
     const cx = bandCenter(i)
     set(canvas, roles, xAxisRow, cx, ch.xTick, 'border')
-    // Label below
-    const label = catLabels[i]!
-    const labelStart = cx - Math.floor(label.length / 2)
-    writeText(canvas, roles, xLabelRow, Math.max(0, labelStart), label, 'text')
+    if (showXLabels && xLabelRow >= 0) {
+      const label = catLabels[i]!
+      const labelStart = cx - Math.floor(label.length / 2)
+      writeText(canvas, roles, xLabelRow, Math.max(0, labelStart), label, 'text')
+    }
   }
 
   // 5. X-axis title
@@ -244,6 +257,17 @@ function renderVertical(
             set(canvas, roles, displayRow, c, ch.bar, 'arrow', hexColors, hexColor)
           }
         }
+
+        if (chart.config.showDataLabel) {
+          const label = formatTickValue(entry.data[i]!)
+          const topDisplayRow = plotTop + (plotH - 1 - toRow)
+          const bottomDisplayRow = plotTop + (plotH - 1 - fromRow)
+          const labelRow = entry.data[i]! >= 0
+            ? Math.max(plotTop, topDisplayRow - 1)
+            : Math.min(xAxisRow - 1, bottomDisplayRow + 1)
+          const labelCol = Math.max(plotLeft, cx - Math.floor(label.length / 2))
+          writeColoredText(canvas, roles, hexColors, labelRow, labelCol, label, 'text', hexColor)
+        }
       }
     }
   }
@@ -254,7 +278,8 @@ function renderVertical(
     if (chart.series[si]!.type === 'line') lineEntries.push({ data: chart.series[si]!.data, globalIdx: si })
   }
 
-  for (const entry of lineEntries) {
+  for (let lineIdx = 0; lineIdx < lineEntries.length; lineIdx++) {
+    const entry = lineEntries[lineIdx]!
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!
     drawStaircaseLine(canvas, roles, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, hexColors, hexColor)
@@ -279,19 +304,22 @@ function renderHorizontal(
   const yRange = chart.yAxis.range!
   const valueTicks = niceTickValues(yRange.min, yRange.max)
   const catLabels = getCategoryLabels(chart, dataCount)
-  const catGutter = Math.max(...catLabels.map(l => l.length)) + 1
+  const showCategoryLabels = chart.config.xAxis?.showLabel !== false
+  const showValueLabels = chart.config.yAxis?.showLabel !== false
+  const catGutter = showCategoryLabels ? Math.max(...catLabels.map(l => l.length)) + 1 : 0
 
   const plotW = Math.max(PLOT_WIDTH, 40)
   const bandH = Math.max(2, Math.floor(PLOT_HEIGHT / dataCount))
   const plotH = bandH * dataCount
 
-  const hasTitle = !!chart.title
-  const hasYTitle = !!chart.yAxis.title
+  const hasTitle = !!chart.title && chart.config.showTitle !== false
+  const hasYTitle = !!chart.yAxis.title && chart.config.yAxis?.showTitle !== false
   const hasLegend = chart.series.length > 1
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
   const plotLeft = catGutter + 1
-  const totalW = plotLeft + plotW + 2
-  const totalH = plotTop + plotH + 2 + (hasYTitle ? 1 : 0)
+  const dataLabelPad = chart.config.showDataLabel ? 12 : 2
+  const totalW = plotLeft + plotW + dataLabelPad
+  const totalH = plotTop + plotH + 1 + (showValueLabels ? 1 : 0) + (hasYTitle ? 1 : 0)
   const xAxisRow = plotTop + plotH
 
   const canvas = createCanvas(totalW, totalH)
@@ -299,7 +327,7 @@ function renderHorizontal(
   const hexColors = createHexCanvas(totalW, totalH)
 
   // Series colors
-  const seriesColors = getSeriesColors(chart.series.length, theme)
+  const seriesColors = getSeriesColors(chart.series.length, theme, chart.theme.plotColorPalette)
 
   // Value scale (horizontal)
   const valueToCol = (v: number): number => {
@@ -328,8 +356,10 @@ function renderHorizontal(
   for (let i = 0; i < dataCount; i++) {
     const my = bandMid(i)
     const label = catLabels[i]!
-    const labelStart = catGutter - label.length
-    writeText(canvas, roles, my, Math.max(0, labelStart), label, 'text')
+    if (showCategoryLabels) {
+      const labelStart = catGutter - label.length
+      writeText(canvas, roles, my, Math.max(0, labelStart), label, 'text')
+    }
   }
 
   // X-axis (value axis on bottom)
@@ -340,8 +370,10 @@ function renderHorizontal(
     const cx = valueToCol(tick)
     if (cx < plotLeft || cx >= plotLeft + plotW) continue
     set(canvas, roles, xAxisRow, cx, ch.xTick, 'border')
-    const label = formatTickValue(tick)
-    writeText(canvas, roles, xAxisRow + 1, cx - Math.floor(label.length / 2), label, 'text')
+    if (showValueLabels) {
+      const label = formatTickValue(tick)
+      writeText(canvas, roles, xAxisRow + 1, cx - Math.floor(label.length / 2), label, 'text')
+    }
   }
 
   // Y-axis title
@@ -389,6 +421,14 @@ function renderHorizontal(
             set(canvas, roles, r, c, ch.bar, 'arrow', hexColors, hexColor)
           }
         }
+
+        if (chart.config.showDataLabel) {
+          const label = formatTickValue(entry.data[i]!)
+          const labelCol = entry.data[i]! >= 0
+            ? Math.min(totalW - label.length, toCol + 2)
+            : Math.max(plotLeft, fromCol - label.length - 1)
+          writeColoredText(canvas, roles, hexColors, by, labelCol, label, 'text', hexColor)
+        }
       }
     }
   }
@@ -399,7 +439,8 @@ function renderHorizontal(
     if (chart.series[si]!.type === 'line') lineEntries.push({ data: chart.series[si]!.data, globalIdx: si })
   }
 
-  for (const entry of lineEntries) {
+  for (let lineIdx = 0; lineIdx < lineEntries.length; lineIdx++) {
+    const entry = lineEntries[lineIdx]!
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!
     drawHorizontalStaircaseLine(canvas, roles, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, hexColors, hexColor)
@@ -704,6 +745,21 @@ function get(canvas: Canvas, row: number, col: number): string {
 function writeText(canvas: Canvas, roles: RoleCanvas, row: number, startCol: number, text: string, role: CharRole): void {
   for (let i = 0; i < text.length; i++) {
     set(canvas, roles, row, startCol + i, text[i]!, role)
+  }
+}
+
+function writeColoredText(
+  canvas: Canvas,
+  roles: RoleCanvas,
+  hexCanvas: HexCanvas,
+  row: number,
+  startCol: number,
+  text: string,
+  role: CharRole,
+  hex: string,
+): void {
+  for (let i = 0; i < text.length; i++) {
+    set(canvas, roles, row, startCol + i, text[i]!, role, hexCanvas, hex)
   }
 }
 

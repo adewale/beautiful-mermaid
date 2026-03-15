@@ -5,28 +5,48 @@
 //   - UTF-8 BOM stripping
 //   - leading YAML frontmatter
 //   - Mermaid directives / init blocks (%%{init: ...}%%)
-//   - Mermaid comment stripping (%% ...)
+//   - Mermaid comment stripping for downstream line-based parsers
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
-export type MermaidConfigScalar = string | number | boolean
+export type MermaidConfigScalar = string | number | boolean | null
+export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
 
-export interface MermaidThemeVariables {
-  fontFamily?: string
-  [key: string]: MermaidConfigScalar | undefined
+export interface MermaidConfigMap {
+  [key: string]: MermaidConfigValue | undefined
 }
 
-export interface TimelineRuntimeConfig {
+export type MermaidFrontmatterScalar = MermaidConfigScalar
+export type MermaidFrontmatterValue = MermaidConfigValue
+export type MermaidFrontmatterList = MermaidFrontmatterValue[]
+
+export interface MermaidFrontmatterMap extends MermaidConfigMap {}
+
+export interface MermaidThemeVariables extends MermaidConfigMap {
+  fontFamily?: string
+}
+
+export interface TimelineRuntimeConfig extends MermaidConfigMap {
   disableMulticolor?: boolean
   sectionFills?: string[]
   sectionColours?: string[]
 }
 
-export interface MermaidRuntimeConfig {
+export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
   timeline?: TimelineRuntimeConfig
+  xyChart?: MermaidConfigMap
+  useMaxWidth?: boolean
+  useWidth?: number
+  themeCSS?: string
+}
+
+export interface ProcessedMermaidSource {
+  body: string
+  lines: string[]
+  frontmatter: MermaidFrontmatterMap
 }
 
 export interface NormalizedMermaidSource {
@@ -34,79 +54,187 @@ export interface NormalizedMermaidSource {
   lines: string[]
   firstLine: string
   config: MermaidRuntimeConfig
+  frontmatter: MermaidFrontmatterMap
 }
+
+const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
+const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
 ): NormalizedMermaidSource {
-  const rawLines = text.replace(/^\uFEFF/, '').split('\n')
-  let index = 0
-  let config = mergeMermaidConfigs(baseConfig)
-
-  while (index < rawLines.length && rawLines[index]!.trim().length === 0) {
-    index++
-  }
-
-  if (rawLines[index]?.trim() === '---') {
-    const frontmatter = collectFrontmatter(rawLines, index)
-    if (frontmatter) {
-      config = mergeMermaidConfigs(config, frontmatter.config)
-      index = frontmatter.nextIndex
-    }
-  }
-
-  const lines: string[] = []
-
-  while (index < rawLines.length) {
-    const rawLine = rawLines[index]!
-    const trimmed = rawLine.trim()
-
-    if (trimmed.startsWith('%%{')) {
-      const directive = collectDirective(rawLines, index)
-      config = mergeMermaidConfigs(config, directive.config)
-      index = directive.nextIndex
-      continue
-    }
-
-    if (trimmed.length > 0 && !trimmed.startsWith('%%')) {
-      lines.push(trimmed)
-    }
-
-    index++
-  }
+  const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
 
   return {
-    text: lines.join('\n'),
-    lines,
-    firstLine: lines[0]?.toLowerCase() ?? '',
-    config,
+    text: processed.lines.join('\n'),
+    lines: processed.lines,
+    firstLine: processed.lines[0]?.toLowerCase() ?? '',
+    config: normalizeMermaidRuntimeConfig(processed.frontmatter),
+    frontmatter: processed.frontmatter,
   }
+}
+
+export function preprocessMermaidSource(
+  text: string,
+  baseFrontmatter: MermaidFrontmatterMap = {},
+): ProcessedMermaidSource {
+  const frontmatterMatch = text.match(FRONTMATTER_REGEX)
+  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseFrontmatter(frontmatterMatch[1]!)) : {}
+  const rawBody = frontmatterMatch ? text.slice(frontmatterMatch[0].length) : text
+  const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
+  const frontmatter = mergeFrontmatterMaps(
+    mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
+    canonicalizeFrontmatterMap(directiveFrontmatter),
+  )
+
+  return {
+    body,
+    lines: toMermaidLines(body),
+    frontmatter,
+  }
+}
+
+export function toMermaidLines(text: string): string[] {
+  return text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !line.startsWith('%%'))
 }
 
 export function mergeMermaidConfigs(...configs: MermaidRuntimeConfig[]): MermaidRuntimeConfig {
-  const merged: Record<string, unknown> = {}
+  const merged: MermaidFrontmatterMap = {}
 
   for (const config of configs) {
-    mergeInto(merged, config as Record<string, unknown>)
+    mergeInto(merged, runtimeConfigToFrontmatterMap(config))
   }
 
-  return merged as MermaidRuntimeConfig
+  return normalizeMermaidRuntimeConfig(merged)
 }
 
-function mergeInto(target: Record<string, unknown>, source: Record<string, unknown> | undefined): void {
+export function mergeFrontmatterMaps(
+  base: MermaidFrontmatterMap,
+  override: MermaidFrontmatterMap,
+): MermaidFrontmatterMap {
+  const merged = cloneFrontmatterMap(base)
+
+  for (const [key, value] of Object.entries(override)) {
+    if (value === undefined) continue
+
+    const existing = merged[key]
+    if (isFrontmatterMap(existing) && isFrontmatterMap(value)) {
+      merged[key] = mergeFrontmatterMaps(existing, value)
+      continue
+    }
+
+    merged[key] = cloneFrontmatterValue(value)
+  }
+
+  return merged
+}
+
+export function getFrontmatterMap(
+  root: MermaidFrontmatterMap,
+  path: readonly string[],
+): MermaidFrontmatterMap | undefined {
+  let current: MermaidFrontmatterValue | undefined = root
+  for (const segment of path) {
+    if (!isFrontmatterMap(current)) return undefined
+    current = current[segment]
+  }
+  return isFrontmatterMap(current) ? current : undefined
+}
+
+export function getFrontmatterScalar<T extends MermaidFrontmatterScalar>(
+  root: MermaidFrontmatterMap,
+  path: readonly string[],
+): T | undefined {
+  let current: MermaidFrontmatterValue | undefined = root
+  for (const segment of path) {
+    if (!isFrontmatterMap(current)) return undefined
+    current = current[segment]
+  }
+  return current !== undefined && !Array.isArray(current) && (typeof current !== 'object' || current === null)
+    ? current as T
+    : undefined
+}
+
+export function getFrontmatterList<T extends MermaidFrontmatterValue = MermaidFrontmatterValue>(
+  root: MermaidFrontmatterMap,
+  path: readonly string[],
+): T[] | undefined {
+  let current: MermaidFrontmatterValue | undefined = root
+  for (const segment of path) {
+    if (!isFrontmatterMap(current)) return undefined
+    current = current[segment]
+  }
+  return Array.isArray(current) ? current as T[] : undefined
+}
+
+function runtimeConfigToFrontmatterMap(config: MermaidRuntimeConfig): MermaidFrontmatterMap {
+  return canonicalizeFrontmatterMap(toFrontmatterMap(config) ?? {})
+}
+
+function normalizeMermaidRuntimeConfig(raw: MermaidFrontmatterMap): MermaidRuntimeConfig {
+  const config = cloneFrontmatterMap(raw) as MermaidRuntimeConfig
+
+  if (isFrontmatterMap(config.themeVariables)) {
+    config.themeVariables = cloneFrontmatterMap(config.themeVariables) as MermaidThemeVariables
+  }
+
+  if (isFrontmatterMap(config.timeline)) {
+    config.timeline = normalizeTimelineRuntimeConfig(config.timeline)
+  }
+
+  return config
+}
+
+function normalizeTimelineRuntimeConfig(raw: MermaidFrontmatterMap): TimelineRuntimeConfig {
+  const config = cloneFrontmatterMap(raw) as TimelineRuntimeConfig
+
+  if (typeof config.disableMulticolor !== 'boolean') {
+    delete config.disableMulticolor
+  }
+
+  const sectionFills = normalizeStringArray(config.sectionFills)
+  if (sectionFills.length > 0) {
+    config.sectionFills = sectionFills
+  } else {
+    delete config.sectionFills
+  }
+
+  const sectionColours = normalizeStringArray(config.sectionColours)
+  const sectionColors = normalizeStringArray((config as MermaidFrontmatterMap).sectionColors)
+  if (sectionColours.length > 0) {
+    config.sectionColours = sectionColours
+  } else if (sectionColors.length > 0) {
+    config.sectionColours = sectionColors
+  } else {
+    delete config.sectionColours
+  }
+
+  delete (config as MermaidFrontmatterMap).sectionColors
+  return config
+}
+
+function normalizeStringArray(value: MermaidConfigValue | undefined): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+}
+
+function mergeInto(target: MermaidFrontmatterMap, source: MermaidFrontmatterMap | undefined): void {
   if (!source) return
 
   for (const [key, value] of Object.entries(source)) {
     if (value === undefined) continue
 
     if (Array.isArray(value)) {
-      target[key] = value.slice()
+      target[key] = value.map(entry => cloneFrontmatterValue(entry)!)
       continue
     }
 
-    if (isPlainObject(value)) {
-      const existing = isPlainObject(target[key]) ? target[key] as Record<string, unknown> : {}
+    if (isFrontmatterMap(value)) {
+      const existing = isFrontmatterMap(target[key]) ? target[key] as MermaidFrontmatterMap : {}
       target[key] = existing
       mergeInto(existing, value)
       continue
@@ -116,483 +244,494 @@ function mergeInto(target: Record<string, unknown>, source: Record<string, unkno
   }
 }
 
-function collectFrontmatter(rawLines: string[], startIndex: number): { config: MermaidRuntimeConfig; nextIndex: number } | undefined {
-  const content: string[] = []
-  let index = startIndex + 1
+function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmatterMap {
+  const topLevel = cloneFrontmatterMap(raw)
+  const configRoot = isFrontmatterMap(topLevel.config) ? topLevel.config : undefined
+  delete topLevel.config
 
-  while (index < rawLines.length && rawLines[index]!.trim() !== '---') {
-    content.push(rawLines[index]!)
-    index++
-  }
+  return configRoot ? mergeFrontmatterMaps(configRoot, topLevel) : topLevel
+}
 
-  if (index >= rawLines.length) return undefined
+function parseFrontmatter(text: string): MermaidFrontmatterMap {
+  const lines = text.split(/\r?\n/)
+  const firstIndex = skipYamlNoise(lines, 0)
+  if (firstIndex >= lines.length) return {}
 
-  const parsed = parseYamlDocument(content)
-  const frontmatter = isPlainObject(parsed) && isPlainObject(parsed.config)
-    ? parsed.config
-    : parsed
+  const baseIndent = getIndent(lines[firstIndex]!)
+  const state = { lines, index: firstIndex }
+  return parseYamlMap(state, baseIndent).value
+}
 
-  return {
-    config: normalizeMermaidRuntimeConfig(frontmatter),
-    nextIndex: index + 1,
+function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
+  let merged: MermaidFrontmatterMap = {}
+
+  const body = text.replace(INIT_DIRECTIVE_REGEX, (_match, payload: string) => {
+    const parsed = parseDirectiveMap(payload)
+    if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
+    return ''
+  })
+
+  return { body, frontmatter: merged }
+}
+
+function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {
+  try {
+    return toFrontmatterMap(JSON.parse(text))
+  } catch {
+    return parseLooseObjectLiteral(text)
   }
 }
 
-function collectDirective(rawLines: string[], startIndex: number): { config: MermaidRuntimeConfig; nextIndex: number } {
-  const buffer: string[] = []
-  let index = startIndex
+function toFrontmatterMap(value: unknown): MermaidFrontmatterMap | undefined {
+  if (!isPlainObject(value)) return undefined
 
-  while (index < rawLines.length) {
-    buffer.push(rawLines[index]!)
-    if (rawLines[index]!.includes('}%%')) break
-    index++
+  const map: MermaidFrontmatterMap = {}
+  for (const [key, entry] of Object.entries(value)) {
+    const parsed = toFrontmatterValue(entry)
+    if (parsed !== undefined) map[key] = parsed
   }
-
-  const rawDirective = buffer.join('\n').trim()
-  const directiveBody = rawDirective.replace(/^%%\{/, '').replace(/\}%%$/, '').trim()
-  const wrappedBody = directiveBody.startsWith('{') ? directiveBody : `{${directiveBody}}`
-  const parsed = parseObjectLiteral(wrappedBody)
-  const directiveConfig = isPlainObject(parsed) && (isPlainObject(parsed.init) || isPlainObject(parsed.initialize))
-    ? (parsed.init ?? parsed.initialize)
-    : parsed
-
-  return {
-    config: normalizeMermaidRuntimeConfig(directiveConfig),
-    nextIndex: index + 1,
-  }
+  return map
 }
 
-function normalizeMermaidRuntimeConfig(raw: unknown): MermaidRuntimeConfig {
-  if (!isPlainObject(raw)) return {}
+function toFrontmatterValue(value: unknown): MermaidFrontmatterValue | undefined {
+  if (value === null) return null
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
 
-  const config: MermaidRuntimeConfig = {}
-
-  if (typeof raw.theme === 'string') config.theme = raw.theme
-  if (typeof raw.fontFamily === 'string') config.fontFamily = raw.fontFamily
-
-  if (isPlainObject(raw.themeVariables)) {
-    const themeVariables: MermaidThemeVariables = {}
-    for (const [key, value] of Object.entries(raw.themeVariables)) {
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        themeVariables[key] = value
-      }
+  if (Array.isArray(value)) {
+    const items: MermaidFrontmatterList = []
+    for (const entry of value) {
+      const parsed = toFrontmatterValue(entry)
+      if (parsed === undefined) return undefined
+      items.push(parsed)
     }
-    if (Object.keys(themeVariables).length > 0) config.themeVariables = themeVariables
+    return items
   }
 
-  if (isPlainObject(raw.timeline)) {
-    const timeline = normalizeTimelineRuntimeConfig(raw.timeline)
-    if (Object.keys(timeline).length > 0) config.timeline = timeline
-  }
-
-  return config
+  return toFrontmatterMap(value)
 }
 
-function normalizeTimelineRuntimeConfig(raw: Record<string, unknown>): TimelineRuntimeConfig {
-  const config: TimelineRuntimeConfig = {}
-
-  if (typeof raw.disableMulticolor === 'boolean') config.disableMulticolor = raw.disableMulticolor
-
-  const sectionFills = normalizeStringArray(raw.sectionFills)
-  if (sectionFills.length > 0) config.sectionFills = sectionFills
-
-  const sectionColours = normalizeStringArray(raw.sectionColours)
-  const sectionColors = normalizeStringArray(raw.sectionColors)
-  const sectionPalette = sectionColours.length > 0 ? sectionColours : sectionColors
-  if (sectionPalette.length > 0) config.sectionColours = sectionPalette
-
-  return config
+function cloneFrontmatterMap(value: MermaidFrontmatterMap): MermaidFrontmatterMap {
+  const clone: MermaidFrontmatterMap = {}
+  for (const [key, entry] of Object.entries(value)) {
+    clone[key] = cloneFrontmatterValue(entry)
+  }
+  return clone
 }
 
-function normalizeStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+function cloneFrontmatterValue(value: MermaidFrontmatterValue | undefined): MermaidFrontmatterValue | undefined {
+  if (value === undefined || value === null) return value
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) return value.map(entry => cloneFrontmatterValue(entry)!)
+  return cloneFrontmatterMap(value)
 }
 
-function parseYamlDocument(lines: string[]): unknown {
-  const prepared = dedentYamlLines(lines.map(line => line.replace(/\t/g, '    ')))
-  const { value } = parseYamlBlock(prepared, 0, 0)
-  return value
+function isFrontmatterMap(value: MermaidFrontmatterValue | undefined): value is MermaidFrontmatterMap {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function dedentYamlLines(lines: string[]): string[] {
-  const indents = lines
-    .filter(line => stripYamlComment(line).trim().length > 0)
-    .map(countIndent)
-
-  const minIndent = indents.length > 0 ? Math.min(...indents) : 0
-  if (minIndent === 0) return lines
-
-  return lines.map(line => line.slice(Math.min(minIndent, line.length)))
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function parseYamlBlock(lines: string[], startIndex: number, indent: number): { value: unknown; nextIndex: number } {
-  let index = startIndex
-
-  while (index < lines.length) {
-    const trimmed = stripYamlComment(lines[index]!).trim()
-    if (trimmed.length === 0) {
-      index++
-      continue
-    }
-    break
+function parseScalar(valueText: string): MermaidFrontmatterScalar {
+  if ((valueText.startsWith('"') && valueText.endsWith('"')) || (valueText.startsWith("'") && valueText.endsWith("'"))) {
+    return unescapeQuotedString(valueText)
   }
-
-  if (index >= lines.length) return { value: {}, nextIndex: index }
-
-  const firstIndent = countIndent(lines[index]!)
-  if (firstIndent < indent) return { value: {}, nextIndex: index }
-
-  const firstTrimmed = stripYamlComment(lines[index]!).trim()
-  if (firstTrimmed.startsWith('-')) {
-    const items: unknown[] = []
-
-    while (index < lines.length) {
-      const line = stripYamlComment(lines[index]!)
-      const trimmed = line.trim()
-      if (trimmed.length === 0) {
-        index++
-        continue
-      }
-
-      const currentIndent = countIndent(line)
-      if (currentIndent < indent) break
-      if (!trimmed.startsWith('-')) break
-
-      const rest = trimmed.slice(1).trim()
-      index++
-
-      if (rest.length === 0) {
-        const nested = parseYamlBlock(lines, index, currentIndent + 2)
-        items.push(nested.value)
-        index = nested.nextIndex
-      } else if (looksLikeYamlKeyValue(rest)) {
-        const synthetic = `${' '.repeat(currentIndent + 2)}${rest}`
-        const nestedLines = [synthetic]
-        let nestedIndex = index
-
-        while (nestedIndex < lines.length) {
-          const candidate = lines[nestedIndex]!
-          const candidateTrimmed = stripYamlComment(candidate).trim()
-          if (candidateTrimmed.length === 0) {
-            nestedLines.push(candidate)
-            nestedIndex++
-            continue
-          }
-          if (countIndent(candidate) <= currentIndent) break
-          nestedLines.push(candidate)
-          nestedIndex++
-        }
-
-        const nested = parseYamlBlock(nestedLines, 0, currentIndent + 2)
-        items.push(nested.value)
-        index = nestedIndex
-      } else {
-        items.push(parseYamlScalar(rest))
-      }
-    }
-
-    return { value: items, nextIndex: index }
-  }
-
-  const object: Record<string, unknown> = {}
-
-  while (index < lines.length) {
-    const line = stripYamlComment(lines[index]!)
-    const trimmed = line.trim()
-    if (trimmed.length === 0) {
-      index++
-      continue
-    }
-
-    const currentIndent = countIndent(line)
-    if (currentIndent < indent) break
-    if (currentIndent > indent) {
-      throw new Error(`Invalid Mermaid frontmatter indentation near "${trimmed}"`)
-    }
-
-    const match = trimmed.match(/^([^:]+):(?:\s+(.*))?$/)
-    if (!match) {
-      throw new Error(`Invalid Mermaid frontmatter entry: "${trimmed}"`)
-    }
-
-    const key = match[1]!.trim()
-    const valuePart = match[2]
-    index++
-
-    if (valuePart === undefined || valuePart.trim().length === 0) {
-      const nested = parseYamlBlock(lines, index, currentIndent + 2)
-      object[key] = nested.value
-      index = nested.nextIndex
-      continue
-    }
-
-    object[key] = parseYamlScalar(valuePart.trim())
-  }
-
-  return { value: object, nextIndex: index }
+  if (valueText === 'true') return true
+  if (valueText === 'false') return false
+  if (valueText === 'null') return null
+  if (/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(valueText)) return Number(valueText)
+  return valueText
 }
 
-function stripYamlComment(line: string): string {
-  let inSingle = false
-  let inDouble = false
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]!
-    const prev = i > 0 ? line[i - 1]! : ''
-
-    if (char === "'" && !inDouble && prev !== '\\') inSingle = !inSingle
-    if (char === '"' && !inSingle && prev !== '\\') inDouble = !inDouble
-
-    if (char === '#' && !inSingle && !inDouble) {
-      return line.slice(0, i)
-    }
-  }
-
-  return line
+function parseLooseObjectLiteral(text: string): MermaidFrontmatterMap | undefined {
+  const parsed = parseFlowValue(text.trim())
+  return isFrontmatterMap(parsed) ? parsed : undefined
 }
 
-function parseYamlScalar(value: string): unknown {
-  if (value === 'true') return true
-  if (value === 'false') return false
-  if (value === 'null') return null
-  if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value)
+function parseFlowValue(text: string): MermaidFrontmatterValue | undefined {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return undefined
 
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return parseStringLiteral(value)
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return parseFlowMap(trimmed.slice(1, -1))
+  }
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return parseFlowList(trimmed.slice(1, -1))
   }
 
-  if (value.startsWith('[') || value.startsWith('{')) {
-    return parseObjectLiteral(value)
-  }
-
-  return value
+  return parseScalar(trimmed)
 }
 
-function looksLikeYamlKeyValue(value: string): boolean {
-  return /^[^:[\]{}][^:]*:(?:\s+.*)?$/.test(value)
+function parseFlowMap(text: string): MermaidFrontmatterMap | undefined {
+  const map: MermaidFrontmatterMap = {}
+  for (const entry of splitFlowEntries(text)) {
+    const colonIdx = findSeparatorIndex(entry, ':')
+    if (colonIdx === -1) return undefined
+
+    const rawKey = entry.slice(0, colonIdx).trim()
+    const rawValue = entry.slice(colonIdx + 1).trim()
+    const key = parseFlowKey(rawKey)
+    if (!key) return undefined
+
+    const value = parseFlowValue(rawValue)
+    if (value === undefined) return undefined
+    map[key] = value
+  }
+  return map
 }
 
-function countIndent(line: string): number {
-  let count = 0
-  while (count < line.length && line[count] === ' ') count++
-  return count
+function parseFlowList(text: string): MermaidFrontmatterList | undefined {
+  const values: MermaidFrontmatterList = []
+  for (const entry of splitFlowEntries(text)) {
+    const value = parseFlowValue(entry)
+    if (value === undefined) return undefined
+    values.push(value)
+  }
+  return values
 }
 
-type LiteralToken =
-  | { type: 'brace-open' | 'brace-close' | 'bracket-open' | 'bracket-close' | 'colon' | 'comma' }
-  | { type: 'string'; value: string }
-  | { type: 'number'; value: number }
-  | { type: 'boolean'; value: boolean }
-  | { type: 'null'; value: null }
-  | { type: 'identifier'; value: string }
-
-function parseObjectLiteral(input: string): unknown {
-  const tokens = tokenizeLiteral(input)
-  let index = 0
-
-  const parseValue = (): unknown => {
-    const token = tokens[index]
-    if (!token) throw new Error('Unexpected end of Mermaid config')
-
-    switch (token.type) {
-      case 'string':
-      case 'number':
-      case 'boolean':
-      case 'null':
-        index++
-        return token.value
-
-      case 'brace-open':
-        return parseObject()
-
-      case 'bracket-open':
-        return parseArray()
-
-      case 'identifier':
-        index++
-        if (token.value === 'true') return true
-        if (token.value === 'false') return false
-        if (token.value === 'null') return null
-        return token.value
-
-      default:
-        throw new Error(`Unexpected Mermaid config token: ${token.type}`)
-    }
+function parseFlowKey(text: string): string | undefined {
+  const trimmed = text.trim()
+  if (!trimmed) return undefined
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return unescapeQuotedString(trimmed)
   }
-
-  const parseObject = (): Record<string, unknown> => {
-    expectToken('brace-open')
-    const object: Record<string, unknown> = {}
-
-    while (!peekToken('brace-close')) {
-      const keyToken = tokens[index]
-      if (!keyToken || (keyToken.type !== 'identifier' && keyToken.type !== 'string')) {
-        throw new Error('Expected Mermaid config object key')
-      }
-
-      index++
-      const key = keyToken.value
-      expectToken('colon')
-      object[key] = parseValue()
-
-      if (peekToken('comma')) index++
-    }
-
-    expectToken('brace-close')
-    return object
-  }
-
-  const parseArray = (): unknown[] => {
-    expectToken('bracket-open')
-    const array: unknown[] = []
-
-    while (!peekToken('bracket-close')) {
-      array.push(parseValue())
-      if (peekToken('comma')) index++
-    }
-
-    expectToken('bracket-close')
-    return array
-  }
-
-  const expectToken = (type: LiteralToken['type']): void => {
-    const token = tokens[index]
-    if (!token || token.type !== type) {
-      throw new Error(`Expected Mermaid config token ${type}`)
-    }
-    index++
-  }
-
-  const peekToken = (type: LiteralToken['type']): boolean => tokens[index]?.type === type
-
-  const value = parseValue()
-  if (index < tokens.length) {
-    throw new Error('Unexpected trailing Mermaid config tokens')
-  }
-  return value
+  return trimmed
 }
 
-function tokenizeLiteral(input: string): LiteralToken[] {
-  const tokens: LiteralToken[] = []
-  let index = 0
+function splitFlowEntries(text: string): string[] {
+  const entries: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  let braceDepth = 0
+  let bracketDepth = 0
 
-  while (index < input.length) {
-    const char = input[index]!
-
-    if (/\s/.test(char)) {
-      index++
-      continue
-    }
-
-    if (char === '{') {
-      tokens.push({ type: 'brace-open' })
-      index++
-      continue
-    }
-    if (char === '}') {
-      tokens.push({ type: 'brace-close' })
-      index++
-      continue
-    }
-    if (char === '[') {
-      tokens.push({ type: 'bracket-open' })
-      index++
-      continue
-    }
-    if (char === ']') {
-      tokens.push({ type: 'bracket-close' })
-      index++
-      continue
-    }
-    if (char === ':') {
-      tokens.push({ type: 'colon' })
-      index++
-      continue
-    }
-    if (char === ',') {
-      tokens.push({ type: 'comma' })
-      index++
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!
+    if (quote) {
+      current += char
+      if (char === quote && text[i - 1] !== '\\') quote = null
       continue
     }
 
     if (char === '"' || char === "'") {
-      const { value, nextIndex } = readStringLiteral(input, index)
-      tokens.push({ type: 'string', value })
-      index = nextIndex
+      quote = char
+      current += char
+      continue
+    }
+    if (char === '{') {
+      braceDepth++
+      current += char
+      continue
+    }
+    if (char === '}') {
+      braceDepth--
+      current += char
+      continue
+    }
+    if (char === '[') {
+      bracketDepth++
+      current += char
+      continue
+    }
+    if (char === ']') {
+      bracketDepth--
+      current += char
+      continue
+    }
+    if (char === ',' && braceDepth === 0 && bracketDepth === 0) {
+      const value = current.trim()
+      if (value) entries.push(value)
+      current = ''
       continue
     }
 
-    const numberMatch = input.slice(index).match(/^-?\d+(?:\.\d+)?/)
-    if (numberMatch) {
-      tokens.push({ type: 'number', value: Number(numberMatch[0]) })
-      index += numberMatch[0].length
-      continue
-    }
-
-    const identifierMatch = input.slice(index).match(/^[A-Za-z_$][\w$-]*/)
-    if (identifierMatch) {
-      const value = identifierMatch[0]
-      if (value === 'true' || value === 'false') {
-        tokens.push({ type: 'boolean', value: value === 'true' })
-      } else if (value === 'null') {
-        tokens.push({ type: 'null', value: null })
-      } else {
-        tokens.push({ type: 'identifier', value })
-      }
-      index += value.length
-      continue
-    }
-
-    throw new Error(`Unsupported Mermaid config character: "${char}"`)
+    current += char
   }
 
-  return tokens
+  const trailing = current.trim()
+  if (trailing) entries.push(trailing)
+  return entries
 }
 
-function readStringLiteral(input: string, startIndex: number): { value: string; nextIndex: number } {
-  const quote = input[startIndex]!
-  let value = ''
-  let index = startIndex + 1
+function parseYamlMap(
+  state: { lines: string[]; index: number },
+  indent: number,
+): { value: MermaidFrontmatterMap; index: number } {
+  const map: MermaidFrontmatterMap = {}
+  let index = state.index
 
-  while (index < input.length) {
-    const char = input[index]!
+  while (index < state.lines.length) {
+    index = skipYamlNoise(state.lines, index)
+    if (index >= state.lines.length) break
 
-    if (char === '\\') {
-      const next = input[index + 1]
-      if (next !== undefined) {
-        value += decodeEscape(next)
-        index += 2
-        continue
+    const rawLine = state.lines[index]!
+    const lineIndent = getIndent(rawLine)
+    if (lineIndent < indent) break
+    if (lineIndent > indent) {
+      index++
+      continue
+    }
+
+    const line = rawLine.trim()
+    if (line.startsWith('-')) break
+
+    const colonIdx = findSeparatorIndex(line, ':')
+    if (colonIdx === -1) {
+      index++
+      continue
+    }
+
+    const key = line.slice(0, colonIdx).trim()
+    if (!key) {
+      index++
+      continue
+    }
+
+    const valueText = line.slice(colonIdx + 1).trim()
+    index++
+
+    if (isBlockScalarIndicator(valueText)) {
+      const block = parseYamlBlockScalar(state.lines, index, lineIndent, valueText[0] as '|' | '>')
+      map[key] = block.value
+      index = block.index
+      continue
+    }
+
+    if (valueText.length === 0) {
+      const nested = parseYamlNestedValue(state.lines, index, lineIndent)
+      map[key] = nested.value
+      index = nested.index
+      continue
+    }
+
+    map[key] = parseYamlValue(valueText)
+  }
+
+  state.index = index
+  return { value: map, index }
+}
+
+function parseYamlSequence(
+  state: { lines: string[]; index: number },
+  indent: number,
+): { value: MermaidFrontmatterList; index: number } {
+  const items: MermaidFrontmatterList = []
+  let index = state.index
+
+  while (index < state.lines.length) {
+    index = skipYamlNoise(state.lines, index)
+    if (index >= state.lines.length) break
+
+    const rawLine = state.lines[index]!
+    const lineIndent = getIndent(rawLine)
+    if (lineIndent < indent) break
+    if (lineIndent > indent) {
+      index++
+      continue
+    }
+
+    const line = rawLine.slice(indent).trim()
+    if (!line.startsWith('-')) break
+
+    const valueText = line.slice(1).trim()
+    index++
+
+    if (valueText.length === 0) {
+      const nested = parseYamlNestedValue(state.lines, index, lineIndent)
+      items.push(nested.value)
+      index = nested.index
+      continue
+    }
+
+    if (isBlockScalarIndicator(valueText)) {
+      const block = parseYamlBlockScalar(state.lines, index, lineIndent, valueText[0] as '|' | '>')
+      items.push(block.value)
+      index = block.index
+      continue
+    }
+
+    const colonIdx = findSeparatorIndex(valueText, ':')
+    if (
+      colonIdx !== -1 &&
+      !valueText.startsWith('{') &&
+      !valueText.startsWith('[') &&
+      !valueText.startsWith('"') &&
+      !valueText.startsWith("'")
+    ) {
+      const key = valueText.slice(0, colonIdx).trim()
+      const rawValue = valueText.slice(colonIdx + 1).trim()
+      const item: MermaidFrontmatterMap = {}
+
+      if (isBlockScalarIndicator(rawValue)) {
+        const block = parseYamlBlockScalar(state.lines, index, lineIndent, rawValue[0] as '|' | '>')
+        item[key] = block.value
+        index = block.index
+      } else if (rawValue.length === 0) {
+        const nested = parseYamlNestedValue(state.lines, index, lineIndent)
+        item[key] = nested.value
+        index = nested.index
+      } else {
+        item[key] = parseYamlValue(rawValue)
       }
+
+      const nestedState = { lines: state.lines, index }
+      const extra = parseYamlMap(nestedState, lineIndent + 2)
+      index = nestedState.index
+      items.push(Object.keys(extra.value).length > 0 ? mergeFrontmatterMaps(item, extra.value) : item)
+      continue
     }
 
-    if (char === quote) {
-      return { value, nextIndex: index + 1 }
-    }
+    items.push(parseYamlValue(valueText))
+  }
 
-    value += char
+  state.index = index
+  return { value: items, index }
+}
+
+function parseYamlNestedValue(
+  lines: string[],
+  startIndex: number,
+  parentIndent: number,
+): { value: MermaidFrontmatterValue; index: number } {
+  const nextIndex = skipYamlNoise(lines, startIndex)
+  if (nextIndex >= lines.length) return { value: {}, index: nextIndex }
+
+  const nextLine = lines[nextIndex]!
+  const indent = getIndent(nextLine)
+  if (indent <= parentIndent) return { value: {}, index: nextIndex }
+
+  const state = { lines, index: nextIndex }
+  if (nextLine.slice(indent).trim().startsWith('-')) {
+    return parseYamlSequence(state, indent)
+  }
+  return parseYamlMap(state, indent)
+}
+
+function parseYamlBlockScalar(
+  lines: string[],
+  startIndex: number,
+  parentIndent: number,
+  mode: '|' | '>',
+): { value: string; index: number } {
+  let index = startIndex
+  const chunks: string[] = []
+  let blockIndent: number | undefined
+
+  while (index < lines.length) {
+    const rawLine = lines[index]!
+    const lineIndent = getIndent(rawLine)
+    if (rawLine.trim().length === 0) {
+      chunks.push('')
+      index++
+      continue
+    }
+    if (lineIndent <= parentIndent) break
+
+    if (blockIndent === undefined) blockIndent = lineIndent
+    chunks.push(rawLine.slice(Math.min(rawLine.length, blockIndent)))
     index++
   }
 
-  throw new Error('Unterminated Mermaid config string literal')
-}
-
-function parseStringLiteral(value: string): string {
-  return readStringLiteral(value, 0).value
-}
-
-function decodeEscape(char: string): string {
-  switch (char) {
-    case 'n': return '\n'
-    case 'r': return '\r'
-    case 't': return '\t'
-    case '"': return '"'
-    case "'": return "'"
-    case '\\': return '\\'
-    default: return char
+  return {
+    value: mode === '>' ? foldYamlBlockScalar(chunks) : chunks.join('\n'),
+    index,
   }
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+function parseYamlValue(text: string): MermaidFrontmatterValue {
+  const flowValue = parseFlowValue(text)
+  return flowValue === undefined ? parseScalar(text) : flowValue
+}
+
+function foldYamlBlockScalar(lines: string[]): string {
+  let result = ''
+  let previousBlank = false
+
+  for (const line of lines) {
+    if (line.length === 0) {
+      result += result.endsWith('\n') || result.length === 0 ? '\n' : '\n\n'
+      previousBlank = true
+      continue
+    }
+
+    if (result.length > 0 && !previousBlank && !result.endsWith('\n')) result += ' '
+    result += line
+    previousBlank = false
+  }
+
+  return result
+}
+
+function skipYamlNoise(lines: string[], index: number): number {
+  let cursor = index
+  while (cursor < lines.length) {
+    const trimmed = lines[cursor]!.trim()
+    if (trimmed.length === 0 || trimmed.startsWith('#')) {
+      cursor++
+      continue
+    }
+    break
+  }
+  return cursor
+}
+
+function getIndent(line: string): number {
+  return line.match(/^\s*/)?.[0].length ?? 0
+}
+
+function isBlockScalarIndicator(valueText: string): valueText is '|' | '>' | '|-' | '>-' | '|+' | '>+' {
+  return /^[|>][-+]?$/.test(valueText)
+}
+
+function findSeparatorIndex(text: string, separator: ':' | ','): number {
+  let quote: '"' | "'" | null = null
+  let braceDepth = 0
+  let bracketDepth = 0
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!
+    if (quote) {
+      if (char === quote && text[i - 1] !== '\\') quote = null
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    if (char === '{') {
+      braceDepth++
+      continue
+    }
+    if (char === '}') {
+      braceDepth--
+      continue
+    }
+    if (char === '[') {
+      bracketDepth++
+      continue
+    }
+    if (char === ']') {
+      bracketDepth--
+      continue
+    }
+    if (char === separator && braceDepth === 0 && bracketDepth === 0) return i
+  }
+
+  return -1
+}
+
+function unescapeQuotedString(valueText: string): string {
+  try {
+    if (valueText.startsWith("'")) {
+      return valueText
+        .slice(1, -1)
+        .replace(/\\\\/g, '\\')
+        .replace(/\\'/g, "'")
+    }
+    return JSON.parse(valueText)
+  } catch {
+    return valueText.slice(1, -1)
+  }
 }

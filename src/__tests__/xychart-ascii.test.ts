@@ -1,8 +1,9 @@
 /**
- * Tests for xychart-beta ASCII rendering.
+ * Tests for xychart ASCII rendering.
  *
  * Tests bar charts, line charts, mixed charts, horizontal orientation,
- * multi-series support, staircase line routing, and edge cases.
+ * Mermaid parity features, multi-series support, staircase routing,
+ * and edge cases.
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
@@ -220,6 +221,90 @@ describe('xychart ASCII – titles and axes', () => {
     // First non-empty line should be chart content, not a title
     const lines = result.split('\n').filter(l => l.trim().length > 0)
     expect(lines.length).toBeGreaterThan(0)
+  })
+})
+
+describe('xychart ASCII – Mermaid parity', () => {
+  it('accepts the stable xychart header and strips quotes from category labels', () => {
+    const result = render(`xychart
+      title Revenue
+      x-axis [Q1, "Q2 Growth", Q3]
+      bar [10, 20, 30]`)
+    expect(result).toContain('Revenue')
+    expect(result).toContain('Q2 Growth')
+    expect(result).not.toContain('"Q2 Growth"')
+  })
+
+  it('supports frontmatter showDataLabel and axis label visibility', () => {
+    const result = render(`---
+      config:
+        xyChart:
+          showDataLabel: true
+          xAxis:
+            showLabel: false
+      ---
+      xychart
+      x-axis [Cat1, Cat2, Cat3]
+      bar [10, 20, 30]`)
+    expect(result).toContain('10')
+    expect(result).toContain('30')
+    expect(result).not.toContain('Cat1')
+    expect(result).not.toContain('Cat2')
+    expect(result).not.toContain('Cat3')
+  })
+
+  it('shows data labels for bars only, not line points', () => {
+    const result = render(`---
+      config:
+        xyChart:
+          showDataLabel: true
+      ---
+      xychart
+      x-axis [A, B, C]
+      bar [10, 20, 30]
+      line [17, 18, 27]`)
+    expect(result).toContain('10')
+    expect(result).toContain('20')
+    expect(result).toContain('30')
+    expect(result).not.toContain('17')
+    expect(result).not.toContain('18')
+    expect(result).not.toContain('27')
+  })
+
+  it('supports CRLF frontmatter for horizontal orientation and hidden titles', () => {
+    const result = render([
+      '---',
+      'config:',
+      '  xyChart:',
+      '    chartOrientation: horizontal',
+      '    showTitle: false',
+      '---',
+      'xychart',
+      '  title Revenue',
+      '  x-axis [Python, JavaScript, Go]',
+      '  bar [30, 25, 12]',
+    ].join('\r\n'))
+    expect(result).not.toContain('Revenue')
+    expect(result).toMatch(/Python[│|]/)
+    expect(result).toMatch(/JavaScript[│|]/)
+  })
+
+  it('supports Mermaid init directives for xychart config in ASCII output', () => {
+    const result = render(`%%{init: {
+      "xyChart": {
+        "showDataLabel": true,
+        "xAxis": { "showLabel": false }
+      }
+    }}%%
+xychart
+  x-axis [Q1, Q2, Q3]
+  y-axis Users 0 --> 100
+  bar [30, 60, 45]
+  line [25, 55, 50]`)
+
+    expect(result).toContain('30')
+    expect(result).toContain('60')
+    expect(result).not.toContain('Q1')
   })
 })
 
