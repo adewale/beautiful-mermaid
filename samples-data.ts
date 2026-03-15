@@ -1241,6 +1241,20 @@ export const samples: Sample[] = [
       Do work: 1: Me, Cat
       Review PRs: 4: Me, Team`,
   },
+  {
+    title: 'Journey: Mermaid Docs Example',
+    category: 'Journey',
+    description: 'Official Mermaid user journey example, matching the docs structure and scoring pattern.',
+    source: `journey
+    title My working day
+    section Go to work
+      Make tea: 5: Me
+      Go upstairs: 3: Me
+      Do work: 1: Me, Cat
+    section Go home
+      Go downstairs: 5: Me
+      Sit down: 3: Me`,
+  },
 
   // ══════════════════════════════════════════════════════════════════════════
   //  XY CHARTS (xychart-beta)

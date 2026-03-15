@@ -384,6 +384,20 @@ journey
     Do work: 1: Me, Cat
 ```
 
+Official Mermaid docs example:
+
+```
+journey
+  title My working day
+  section Go to work
+    Make tea: 5: Me
+    Go upstairs: 3: Me
+    Do work: 1: Me, Cat
+  section Go home
+    Go downstairs: 5: Me
+    Sit down: 3: Me
+```
+
 ### Inline Edge Styling
 
 Use `linkStyle` to override edge colors and stroke widths — just like [Mermaid's linkStyle](https://mermaid.js.org/syntax/flowchart.html#styling-links):
