@@ -545,6 +545,7 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `componentSpacing` | `number` | `24` | Spacing between disconnected components |
 | `thoroughness` | `number` | `3` | Crossing minimization trials (1-7, higher = better but slower) |
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
 
 **Timeline + XY Charts:** Diagrams starting with `timeline` or `xychart-beta` are auto-detected — no separate function needed. The `accent` color option drives the chart series color palette.
 
@@ -566,6 +567,29 @@ Render a Mermaid diagram to ASCII/Unicode text. Synchronous.
 | `boxBorderPadding` | `number` | `1` | Inner box padding |
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'` |
 | `theme` | `Partial<AsciiTheme>` | — | Override default colors for ASCII output |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
+
+### Mermaid Config Support
+
+Both SVG and ASCII rendering accept Mermaid-style runtime config via `options.mermaidConfig`, and also honor leading frontmatter plus Mermaid init directives in the source text.
+
+```ts
+const svg = renderMermaidSVG(source, {
+  mermaidConfig: {
+    fontFamily: 'IBM Plex Sans',
+    timeline: {
+      disableMulticolor: true,
+      sectionFills: ['#224466'],
+      sectionColours: ['#ffffff'],
+    },
+    themeVariables: {
+      cScale0: '#224466',
+      cScaleLabel0: '#ffffff',
+      cScaleInv0: '#99bbdd',
+    },
+  },
+})
+```
 
 ### `parseMermaid(text): MermaidGraph`
 
