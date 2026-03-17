@@ -1,6 +1,6 @@
 import type { PositionedJourneyDiagram, PositionedJourneySection, PositionedJourneyTask, PositionedJourneyActorPill } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -45,7 +45,9 @@ export function renderJourneySvg(
   if (accessibility.description) {
     parts.push(`<desc id="journey-a11y-desc">${escapeXml(accessibility.description)}</desc>`)
   }
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, colors.shadow))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(journeyStyles())
 
   for (const section of diagram.sections) {

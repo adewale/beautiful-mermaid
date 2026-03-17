@@ -1,6 +1,6 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, estimateTextWidth } from '../styles.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 
@@ -45,7 +45,7 @@ export function renderXYChartSvg(
   const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent, svgMeta.openTag)
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
   parts.push(svgTag)
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, colors.shadow))
 
   const { style, defs } = chartStyles(chart, interactive, colors.accent, colors.bg)
   parts.push(style)

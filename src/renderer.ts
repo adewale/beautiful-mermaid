@@ -1,6 +1,6 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point } from './types.ts'
 import type { DiagramColors } from './theme.ts'
-import { svgOpenTag, buildStyleBlock } from './theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
@@ -42,9 +42,11 @@ export function renderSvg(
 
   // SVG root with CSS variables + style block + defs
   parts.push(svgOpenTag(graph.width, graph.height, colors, transparent))
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, colors.shadow))
   parts.push('<defs>')
   parts.push(arrowMarkerDefs())
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
   const customStrokeColors = new Set<string>()
   for (const edge of graph.edges) {

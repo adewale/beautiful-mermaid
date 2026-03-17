@@ -41,6 +41,11 @@ export interface DiagramColors {
   surface?: string
   /** Node/group stroke color → CSS variable --border */
   border?: string
+
+  // -- Optional visual effects --
+
+  /** Enable subtle drop shadows on node shapes. Default: false */
+  shadow?: boolean
 }
 
 // ============================================================================
@@ -152,6 +157,16 @@ export const THEMES: Record<string, DiagramColors> = {
     bg: '#282c34', fg: '#abb2bf',
     line: '#4b5263', accent: '#c678dd', muted: '#5c6370',
   },
+  'tufte': {
+    bg: '#FFFFF8', fg: '#111111',
+    line: '#AAAAAA', accent: '#7A0000', muted: '#888888',
+    surface: '#F5F0E8', border: '#CCCCCC', shadow: true,
+  },
+  'tufte-dark': {
+    bg: '#1C1C1A', fg: '#E8E4DC',
+    line: '#666660', accent: '#C87070', muted: '#908880',
+    surface: '#2A2926', border: '#444440', shadow: true,
+  },
 } as const
 
 export type ThemeName = keyof typeof THEMES
@@ -229,13 +244,51 @@ export function fromShikiTheme(theme: ShikiThemeLike): DiagramColors {
 // ============================================================================
 
 /**
+ * SVG <filter> definition for subtle drop shadows on node shapes.
+ * Returns the filter element to include inside <defs>, or empty string
+ * when shadows are not enabled.
+ *
+ * The shadow uses a fixed dark color at very low opacity so it works
+ * on any light background. Dark themes should use a lighter base.
+ */
+export function buildShadowDefs(colors: DiagramColors): string {
+  if (!colors.shadow) return ''
+
+  // Detect dark theme by checking if bg luminance is low.
+  // Use a lighter shadow base for dark backgrounds so it's visible.
+  const isDark = isColorDark(colors.bg)
+  const floodColor = isDark ? '#ffffff' : '#000000'
+  const floodOpacity = isDark ? '0.12' : '0.08'
+
+  return (
+    `  <filter id="bm-shadow" x="-12%" y="-10%" width="128%" height="136%">` +
+    `\n    <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="${floodColor}" flood-opacity="${floodOpacity}" />` +
+    `\n  </filter>`
+  )
+}
+
+/**
+ * Rough luminance check for hex colors.
+ * Returns true if the color appears dark (luminance < 0.4).
+ */
+function isColorDark(color: string): boolean {
+  const hex = color.replace('#', '')
+  if (hex.length < 6) return false
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  // Relative luminance approximation
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.4
+}
+
+/**
  * Build the CSS variable derivation rules for the SVG <style> block.
  *
  * When an optional variable (--line, --accent, etc.) is set on the SVG or
  * a parent element, it's used directly. When unset, the fallback computes
  * a blended value from --fg and --bg using color-mix().
  */
-export function buildStyleBlock(font: string, hasMonoFont: boolean): string {
+export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean): string {
   const fontImports = [
     `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`,
     ...(hasMonoFont
@@ -260,13 +313,18 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean): string {
     --_inner-stroke:  color-mix(in srgb, var(--fg) ${MIX.innerStroke}%, var(--bg));
     --_key-badge:     color-mix(in srgb, var(--fg) ${MIX.keyBadge}%, var(--bg));`
 
+  // Shadow CSS — applies drop shadow to node/box groups when enabled
+  const shadowRules = shadow
+    ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }'
+    : ''
+
   return [
     '<style>',
     `  ${fontImports.join('\n  ')}`,
     `  text { font-family: '${font}', system-ui, sans-serif; }`,
     ...(hasMonoFont ? [`  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }`] : []),
     `  svg {${derivedVars}`,
-    `  }`,
+    `  }${shadowRules}`,
     '</style>',
   ].join('\n')
 }
