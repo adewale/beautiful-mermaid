@@ -126,6 +126,7 @@ function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): Diag
     muted: options.muted ?? readThemeValue(vars, 'secondaryTextColor', 'tertiaryTextColor') ?? theme?.muted,
     surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
     border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
+    shadow: options.shadow ?? theme?.shadow,
   }
 }
 

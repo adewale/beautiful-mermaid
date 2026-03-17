@@ -1,6 +1,6 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT } from '../styles.ts'
 import { CLS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
@@ -42,9 +42,11 @@ export function renderClassSvg(
 
   // SVG root with CSS variables + style block (with mono font) + defs
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
-  parts.push(buildStyleBlock(font, true))
+  parts.push(buildStyleBlock(font, true, colors.shadow))
   parts.push('<defs>')
   parts.push(relationshipMarkerDefs())
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(shadowDefs)
   parts.push('</defs>')
 
   // 1. Relationship lines (rendered behind boxes)

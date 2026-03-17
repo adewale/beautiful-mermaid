@@ -1,6 +1,6 @@
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 
@@ -75,7 +75,9 @@ export function renderTimelineSvg(
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, colors.shadow))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(timelineStyles())
 
   if (accessibleTitle) {
