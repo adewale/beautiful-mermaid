@@ -1,10 +1,11 @@
 /**
- * Generate mock SVG images demonstrating the Tufte theme.
+ * Generate mock SVG + PNG images demonstrating the Tufte theme.
  * Run: bun tufte-mocks.ts
  */
 import { renderMermaidSVG } from './src/index.ts'
 import { THEMES } from './src/theme.ts'
 import { writeFileSync, mkdirSync } from 'fs'
+import { Resvg } from '@resvg/resvg-js'
 
 mkdirSync('tufte-mocks', { recursive: true })
 
@@ -13,6 +14,10 @@ const tufteOpts = { ...tufte, font: 'Palatino' }
 
 const tufteD = THEMES['tufte-dark']!
 const tufteDarkOpts = { ...tufteD, font: 'Palatino' }
+
+// ============================================================================
+// Diagram sources
+// ============================================================================
 
 // 1. Flowchart
 const flowchart = `graph TD
@@ -85,32 +90,171 @@ const journey = `journey
     Peer review: 3: Reviewer
     Revise and publish: 5: Researcher`
 
+// 6. Timeline
+const timeline = `timeline
+  title History of Data Visualization
+  section Early Foundations
+    1786 : William Playfair invents bar chart
+    1858 : Florence Nightingale's polar area diagram
+  section Statistical Graphics
+    1900 : Karl Pearson's histogram formalization
+    1914 : Willard Brinton's Graphic Methods
+  section Modern Era
+    1967 : Jacques Bertin's Semiology of Graphics
+    1977 : John Tukey's Exploratory Data Analysis
+    1983 : Edward Tufte's Visual Display of Quantitative Information`
+
+// 7. XY Chart
+const xychart = `xychart-beta
+  title "Annual Citations by Publication Year"
+  x-axis [2018, 2019, 2020, 2021, 2022, 2023, 2024]
+  y-axis "Citations" 0 --> 450
+  bar [45, 82, 156, 280, 350, 410, 390]
+  line [45, 82, 156, 280, 350, 410, 390]`
+
+// 8. Architecture: Microservices
+const archMicroservices = `graph LR
+  subgraph Client Layer
+    Web[Web App]
+    Mobile[Mobile App]
+  end
+  subgraph API Gateway
+    GW[Gateway / Load Balancer]
+  end
+  subgraph Services
+    Auth[Auth Service]
+    Users[User Service]
+    Orders[Order Service]
+    Notify[Notification Service]
+  end
+  subgraph Data Layer
+    DB1[(User DB)]
+    DB2[(Order DB)]
+    MQ[Message Queue]
+  end
+  Web --> GW
+  Mobile --> GW
+  GW --> Auth
+  GW --> Users
+  GW --> Orders
+  Auth --> DB1
+  Users --> DB1
+  Orders --> DB2
+  Orders --> MQ
+  MQ --> Notify`
+
+// 9. Architecture: Data Pipeline
+const archPipeline = `graph TD
+  subgraph Ingestion
+    S1[Kafka Broker]
+    S2[REST Ingest API]
+    S3[File Drop / S3]
+  end
+  subgraph Processing
+    ETL[Spark ETL Jobs]
+    Valid[Validation & Schema]
+    Enrich[Enrichment Service]
+  end
+  subgraph Storage
+    DW[(Data Warehouse)]
+    Lake[(Data Lake)]
+    Cache[(Redis Cache)]
+  end
+  subgraph Serving
+    API[Query API]
+    Dash[Dashboard]
+    ML[ML Pipeline]
+  end
+  S1 --> ETL
+  S2 --> Valid
+  S3 --> Valid
+  Valid --> ETL
+  ETL --> Enrich
+  Enrich --> DW
+  Enrich --> Lake
+  DW --> API
+  DW --> Dash
+  Lake --> ML
+  API --> Cache`
+
+// 10. Architecture: CI/CD
+const archCICD = `graph LR
+  Dev[Developer] --> Repo[Git Repository]
+  Repo --> CI{CI Pipeline}
+  CI -->|Lint| Lint[Static Analysis]
+  CI -->|Test| Test[Unit + Integration]
+  CI -->|Build| Build[Docker Build]
+  Lint --> Gate{Quality Gate}
+  Test --> Gate
+  Build --> Gate
+  Gate -->|Pass| Stage[Staging Deploy]
+  Gate -->|Fail| Dev
+  Stage --> Smoke[Smoke Tests]
+  Smoke -->|Pass| Prod[Production Deploy]
+  Smoke -->|Fail| Dev`
+
+// ============================================================================
+// Diagram registry
+// ============================================================================
+
 const diagrams = [
   { name: 'flowchart', source: flowchart },
   { name: 'sequence', source: sequence },
   { name: 'class', source: classDiagram },
   { name: 'er', source: erDiagram },
   { name: 'journey', source: journey },
+  { name: 'timeline', source: timeline },
+  { name: 'xychart', source: xychart },
+  { name: 'arch-microservices', source: archMicroservices },
+  { name: 'arch-pipeline', source: archPipeline },
+  { name: 'arch-cicd', source: archCICD },
 ]
 
+// ============================================================================
+// SVG to PNG conversion
+// ============================================================================
+
+function svgToPng(svg: string, scale: number = 2): Buffer {
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'zoom' as const, value: scale },
+    font: {
+      // Use system fonts as fallback since Google Fonts aren't available locally
+      fontDirs: ['/usr/share/fonts', '/usr/local/share/fonts'],
+      defaultFontFamily: 'serif',
+    },
+  })
+  const rendered = resvg.render()
+  return Buffer.from(rendered.asPng())
+}
+
+// ============================================================================
+// Generate all outputs
+// ============================================================================
+
+const themes = [
+  { suffix: 'tufte-light', opts: tufteOpts },
+  { suffix: 'tufte-dark', opts: tufteDarkOpts },
+  { suffix: 'zinc-light', opts: {} },
+]
+
+let svgCount = 0
+let pngCount = 0
+
 for (const { name, source } of diagrams) {
-  // Light Tufte
-  const svgLight = renderMermaidSVG(source, tufteOpts)
-  writeFileSync(`tufte-mocks/${name}-tufte-light.svg`, svgLight)
+  for (const { suffix, opts } of themes) {
+    const svg = renderMermaidSVG(source, opts)
+    writeFileSync(`tufte-mocks/${name}-${suffix}.svg`, svg)
+    svgCount++
 
-  // Dark Tufte
-  const svgDark = renderMermaidSVG(source, tufteDarkOpts)
-  writeFileSync(`tufte-mocks/${name}-tufte-dark.svg`, svgDark)
-
-  // Zinc light (for comparison)
-  const svgZinc = renderMermaidSVG(source)
-  writeFileSync(`tufte-mocks/${name}-zinc-light.svg`, svgZinc)
+    const png = svgToPng(svg)
+    writeFileSync(`tufte-mocks/${name}-${suffix}.png`, png)
+    pngCount++
+  }
 }
 
-console.log('Generated mock SVGs in tufte-mocks/')
-console.log('Files:')
+console.log(`Generated ${svgCount} SVGs + ${pngCount} PNGs in tufte-mocks/`)
+console.log('\nDiagram types:')
 for (const { name } of diagrams) {
-  console.log(`  ${name}-tufte-light.svg`)
-  console.log(`  ${name}-tufte-dark.svg`)
-  console.log(`  ${name}-zinc-light.svg`)
+  console.log(`  ${name}`)
 }
+console.log('\nThemes: tufte-light, tufte-dark, zinc-light')
