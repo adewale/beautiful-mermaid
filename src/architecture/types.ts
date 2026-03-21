@@ -55,6 +55,8 @@ export interface ArchitectureDiagram {
   junctions: ArchitectureJunction[]
   edges: ArchitectureEdge[]
   rootChildren: ArchitectureChildRef[]
+  accessibilityTitle?: string
+  accessibilityDescription?: string
 }
 
 export interface PositionedArchitectureGroup {
@@ -106,4 +108,6 @@ export interface PositionedArchitectureDiagram {
   services: PositionedArchitectureService[]
   junctions: PositionedArchitectureJunction[]
   edges: PositionedArchitectureEdge[]
+  accessibilityTitle?: string
+  accessibilityDescription?: string
 }

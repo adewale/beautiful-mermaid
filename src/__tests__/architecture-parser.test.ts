@@ -78,6 +78,37 @@ config:
       db{group}:R --> L:api`)).toThrow('is not inside a group')
   })
 
+  it('parses accTitle and single-line accDescr', () => {
+    const diagram = parseArchitectureDiagram(`architecture-beta
+      accTitle: System overview
+      accDescr: Shows the main services and their connections
+      service api(server)[API]`)
+
+    expect(diagram.accessibilityTitle).toBe('System overview')
+    expect(diagram.accessibilityDescription).toBe('Shows the main services and their connections')
+    expect(diagram.services).toHaveLength(1)
+  })
+
+  it('parses multiline accDescr blocks', () => {
+    const diagram = parseArchitectureDiagram(`architecture-beta
+      accTitle: Architecture
+      accDescr {
+        This diagram shows
+        the system architecture
+      }
+      service api(server)[API]`)
+
+    expect(diagram.accessibilityTitle).toBe('Architecture')
+    expect(diagram.accessibilityDescription).toBe('This diagram shows\nthe system architecture')
+  })
+
+  it('rejects unterminated accDescr blocks', () => {
+    expect(() => parseArchitectureDiagram(`architecture-beta
+      accDescr {
+        Never closed
+      service api(server)[API]`)).toThrow('Unterminated accDescr block')
+  })
+
   it('converts architecture diagrams into graph layout input', () => {
     const graph = architectureToMermaidGraph(parseArchitectureDiagram(`architecture-beta
       group platform(cloud)[Platform]

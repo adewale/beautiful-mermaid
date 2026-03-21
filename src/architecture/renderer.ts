@@ -31,9 +31,22 @@ export function renderArchitectureSvg(
     visual.serviceBorder ? `--arch-service-stroke:${visual.serviceBorder}` : '',
   ].filter(Boolean).join(';')
 
+  const hasTitle = Boolean(diagram.accessibilityTitle)
+  const hasDesc = Boolean(diagram.accessibilityDescription)
+  const a11yAttrs: Record<string, string | undefined> = {}
+  if (hasTitle || hasDesc) {
+    a11yAttrs['role'] = 'img'
+    a11yAttrs['aria-roledescription'] = 'architecture'
+  }
+  if (hasTitle) a11yAttrs['aria-labelledby'] = 'arch-a11y-title'
+  if (hasDesc) a11yAttrs['aria-describedby'] = 'arch-a11y-desc'
+
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
     style: archVars,
+    attrs: a11yAttrs,
   }))
+  if (hasTitle) parts.push(`<title id="arch-a11y-title">${escapeXml(diagram.accessibilityTitle!)}</title>`)
+  if (hasDesc) parts.push(`<desc id="arch-a11y-desc">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
   parts.push(buildStyleBlock(font, false))
   parts.push(architectureStyles())
   parts.push('<defs>')

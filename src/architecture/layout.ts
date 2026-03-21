@@ -94,7 +94,16 @@ export function layoutArchitectureDiagram(
     }
   }
 
-  return { width, height, groups, services, junctions, edges }
+  return {
+    width,
+    height,
+    groups,
+    services,
+    junctions,
+    edges,
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
+  }
 }
 
 function mapGroup(

@@ -35,6 +35,30 @@ describe('renderMermaidSVG – architecture diagrams', () => {
     expect(svg).toContain('Analytics')
   })
 
+  it('emits ARIA attributes and title/desc when accTitle and accDescr are present', () => {
+    const svg = renderMermaidSVG(`architecture-beta
+      accTitle: System overview
+      accDescr: High-level service topology
+      group app(cloud)[Application]
+      service api(server)[API] in app`)
+
+    expect(svg).toContain('role="img"')
+    expect(svg).toContain('aria-roledescription="architecture"')
+    expect(svg).toContain('aria-labelledby="arch-a11y-title"')
+    expect(svg).toContain('aria-describedby="arch-a11y-desc"')
+    expect(svg).toContain('<title id="arch-a11y-title">System overview</title>')
+    expect(svg).toContain('<desc id="arch-a11y-desc">High-level service topology</desc>')
+  })
+
+  it('omits ARIA attributes when no accessibility directives are present', () => {
+    const svg = renderMermaidSVG(`architecture-beta
+      service api(server)[API]`)
+
+    expect(svg).not.toContain('role="img"')
+    expect(svg).not.toContain('aria-labelledby')
+    expect(svg).not.toContain('<title')
+  })
+
   it('supports CSS variable color inputs without invalid output', () => {
     const svg = renderMermaidSVG(`architecture-beta
       group edge(cloud)[Edge]

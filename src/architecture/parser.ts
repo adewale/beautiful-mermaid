@@ -49,9 +49,43 @@ export function parseArchitectureDiagram(text: string): ArchitectureDiagram {
   const junctions = new Map<string, ArchitectureJunction>()
   const rootChildren: ArchitectureChildRef[] = []
   const edges: ArchitectureEdge[] = []
+  let accessibilityTitle: string | undefined
+  let accessibilityDescription: string | undefined
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
+    if (accTitleMatch) {
+      accessibilityTitle = normalizeBrTags(accTitleMatch[1]!.trim())
+      continue
+    }
+
+    const accDescrBlockMatch = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
+    if (accDescrBlockMatch) {
+      const blockLines: string[] = []
+      if (accDescrBlockMatch[1]!.trim()) blockLines.push(accDescrBlockMatch[1]!.trim())
+      let closed = false
+      for (i++; i < lines.length; i++) {
+        const blockLine = lines[i]!
+        if (blockLine.includes('}')) {
+          const before = blockLine.slice(0, blockLine.indexOf('}')).trim()
+          if (before) blockLines.push(before)
+          closed = true
+          break
+        }
+        blockLines.push(blockLine)
+      }
+      if (!closed) throw new Error('Unterminated accDescr block — missing closing "}"')
+      accessibilityDescription = normalizeBrTags(blockLines.join('\n').trim())
+      continue
+    }
+
+    const accDescrMatch = line.match(/^accDescr\s*:\s*(.+)$/i)
+    if (accDescrMatch) {
+      accessibilityDescription = normalizeBrTags(accDescrMatch[1]!.trim())
+      continue
+    }
 
     const groupMatch = line.match(GROUP_RE)
     if (groupMatch) {
@@ -102,6 +136,8 @@ export function parseArchitectureDiagram(text: string): ArchitectureDiagram {
     junctions: [...junctions.values()],
     edges,
     rootChildren,
+    accessibilityTitle,
+    accessibilityDescription,
   }
 }
 
