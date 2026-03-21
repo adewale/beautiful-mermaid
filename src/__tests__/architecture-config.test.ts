@@ -1,46 +1,34 @@
 import { describe, expect, it } from 'bun:test'
-import { resolveArchitectureRenderConfig } from '../architecture/config.ts'
+import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
+import type { DiagramColors } from '../theme.ts'
 
-function resolve(text: string, options = {}) {
-  return resolveArchitectureRenderConfig(preprocessMermaidSource(text).frontmatter, options)
+function resolve(text: string, colors: DiagramColors = { bg: '#ffffff', fg: '#1f2937' }) {
+  return resolveArchitectureVisualConfig(preprocessMermaidSource(text).frontmatter, colors)
 }
 
-describe('resolveArchitectureRenderConfig', () => {
-  it('merges Mermaid wrappers into architecture theme and sizing semantics', () => {
+describe('resolveArchitectureVisualConfig', () => {
+  it('computes visual metrics from architecture frontmatter config', () => {
     const resolved = resolve(`---
 config:
-  theme: forest
   themeVariables:
-    background: "#0b1120"
-    mainBkg: "#0f172a"
     clusterBkg: "#111827"
     clusterBorder: "#38bdf8"
-    fontFamily: IBM Plex Sans
-    fontSize: 15
+  architecture:
+    padding: 60
+    iconSize: 26
+    fontSize: 16
 ---
-%%{init: {
-  "theme": "neutral",
-  "themeVariables": {
-    "lineColor": "#f59e0b",
-    "primaryColor": "#38bdf8"
-  },
-  "architecture": {
-    "padding": 60,
-    "iconSize": 26,
-    "fontSize": 16
-  }
-}}%%
 architecture-beta
-  service api(server)[API]`)
+  service api(server)[API]`, {
+      bg: '#0b1120',
+      fg: '#F8FAFC',
+      line: '#f59e0b',
+      accent: '#38bdf8',
+      surface: '#0f172a',
+    })
 
-    expect(resolved.colors.bg).toBe('#0b1120')
-    expect(resolved.colors.fg).toBe('#F8FAFC')
-    expect(resolved.colors.line).toBe('#f59e0b')
-    expect(resolved.colors.accent).toBe('#38bdf8')
-    expect(resolved.colors.surface).toBe('#0f172a')
-    expect(resolved.font).toBe('IBM Plex Sans')
-    expect(resolved.renderOptions.padding).toBe(60)
+    expect(resolved.padding).toBe(60)
     expect(resolved.visual.serviceIconSize).toBe(26)
     expect(resolved.visual.iconSize).toBe(23)
     expect(resolved.visual.serviceFontSize).toBe(16)
@@ -51,27 +39,18 @@ architecture-beta
     expect(resolved.visual.groupBorder).toBe('#38bdf8')
   })
 
-  it('lets explicit render options override Mermaid wrapper config', () => {
-    const resolved = resolve(`---
-config:
-  theme: dark
-  fontFamily: IBM Plex Sans
-  architecture:
-    padding: 72
----
-architecture-beta
+  it('falls back to DiagramColors when no theme variables present', () => {
+    const resolved = resolve(`architecture-beta
   service api(server)[API]`, {
       bg: '#fafaf9',
       fg: '#1c1917',
-      line: '#ea580c',
-      font: 'Space Grotesk',
-      padding: 28,
+      surface: '#e7e5e4',
+      border: '#a8a29e',
     })
 
-    expect(resolved.colors.bg).toBe('#fafaf9')
-    expect(resolved.colors.fg).toBe('#1c1917')
-    expect(resolved.colors.line).toBe('#ea580c')
-    expect(resolved.font).toBe('Space Grotesk')
-    expect(resolved.renderOptions.padding).toBe(28)
+    expect(resolved.visual.groupSurface).toBe('#e7e5e4')
+    expect(resolved.visual.groupBorder).toBe('#a8a29e')
+    expect(resolved.visual.serviceSurface).toBe('#e7e5e4')
+    expect(resolved.visual.serviceBorder).toBe('#a8a29e')
   })
 })

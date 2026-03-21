@@ -44,10 +44,10 @@ describe('renderMermaidSVG – architecture diagrams', () => {
 
     expect(svg).toContain('role="img"')
     expect(svg).toContain('aria-roledescription="architecture"')
-    expect(svg).toContain('aria-labelledby="arch-a11y-title"')
-    expect(svg).toContain('aria-describedby="arch-a11y-desc"')
-    expect(svg).toContain('<title id="arch-a11y-title">System overview</title>')
-    expect(svg).toContain('<desc id="arch-a11y-desc">High-level service topology</desc>')
+    expect(svg).toContain('aria-labelledby="arch-')
+    expect(svg).toContain('aria-describedby="arch-')
+    expect(svg).toContain('System overview</title>')
+    expect(svg).toContain('High-level service topology</desc>')
   })
 
   it('omits ARIA attributes when no accessibility directives are present', () => {

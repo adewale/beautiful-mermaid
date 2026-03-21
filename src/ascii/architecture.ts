@@ -45,12 +45,12 @@ function renderStyledLine(
  * Render a Mermaid architecture diagram to ASCII/Unicode text.
  */
 export function renderArchitectureAscii(
-  text: string,
+  lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
 ): string {
-  const diagram = parseArchitectureDiagram(text)
+  const diagram = parseArchitectureDiagram(lines)
   const useAscii = config.useAscii
   const out: string[] = []
 

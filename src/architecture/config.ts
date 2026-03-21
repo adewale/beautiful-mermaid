@@ -1,5 +1,4 @@
 import type { DiagramColors } from '../theme.ts'
-import { DEFAULTS, THEMES } from '../theme.ts'
 import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
 import type { RenderOptions } from '../types.ts'
 
@@ -21,60 +20,9 @@ export interface ArchitectureVisualConfig {
   serviceBorder?: string
 }
 
-export interface ResolvedArchitectureRenderConfig {
-  renderOptions: RenderOptions
-  colors: DiagramColors
-  font: string
-  transparent: boolean
+export interface ResolvedArchitectureVisualConfig {
   visual: ArchitectureVisualConfig
-}
-
-const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
-  default: {
-    bg: '#ffffff',
-    fg: '#1f2937',
-    line: '#64748b',
-    accent: '#2563eb',
-    muted: '#6b7280',
-    surface: '#f6f8fc',
-    border: '#cbd5e1',
-  },
-  base: {
-    bg: '#ffffff',
-    fg: '#1f2937',
-    line: '#64748b',
-    accent: '#2563eb',
-    muted: '#6b7280',
-    surface: '#f6f8fc',
-    border: '#cbd5e1',
-  },
-  neutral: {
-    bg: THEMES['zinc-light']!.bg,
-    fg: THEMES['zinc-light']!.fg,
-    line: '#737373',
-    accent: '#525252',
-    muted: '#71717a',
-    surface: '#fafafa',
-    border: '#a3a3a3',
-  },
-  dark: {
-    bg: THEMES['github-dark']!.bg,
-    fg: THEMES['github-dark']!.fg,
-    line: '#6b7280',
-    accent: '#60a5fa',
-    muted: '#9ca3af',
-    surface: '#111827',
-    border: '#4b5563',
-  },
-  forest: {
-    bg: '#f6fff7',
-    fg: '#243b2f',
-    line: '#5b8c66',
-    accent: '#2f855a',
-    muted: '#667d6f',
-    surface: '#edf7ef',
-    border: '#9bb8a3',
-  },
+  padding?: number
 }
 
 export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
@@ -91,33 +39,19 @@ export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
   junctionInnerRadius: 4.5,
 }
 
-export function resolveArchitectureRenderConfig(
+/**
+ * Resolve architecture-specific visual metrics from Mermaid frontmatter.
+ *
+ * Color resolution is handled by the shared `buildColors()` in src/index.ts.
+ * This function only computes layout metrics (font sizes, icon sizes, junction
+ * radii) and architecture-specific surface/border overrides (clusterBkg, etc.).
+ */
+export function resolveArchitectureVisualConfig(
   mermaidConfig: MermaidFrontmatterMap,
-  options: RenderOptions = {},
-): ResolvedArchitectureRenderConfig {
+  colors: DiagramColors,
+): ResolvedArchitectureVisualConfig {
   const themeVariables = getMap(mermaidConfig, 'themeVariables')
   const architecture = getMap(mermaidConfig, 'architecture')
-  const palette = resolveThemePalette(mermaidConfig, themeVariables)
-  const explicitBackground = pickString(themeVariables, 'background')
-  const explicitText = pickString(themeVariables, 'primaryTextColor', 'textColor')
-  const explicitMuted = pickString(themeVariables, 'secondaryTextColor', 'textColor')
-  const background = options.bg ?? explicitBackground ?? palette.bg ?? DEFAULTS.bg
-  const foreground = options.fg ?? explicitText ?? readableTextColor(background, palette.fg ?? DEFAULTS.fg)
-
-  const colors: DiagramColors = {
-    bg: background,
-    fg: foreground,
-    line: options.line ?? pickString(themeVariables, 'lineColor') ?? palette.line,
-    accent: options.accent ?? pickString(themeVariables, 'primaryColor', 'tertiaryColor') ?? palette.accent,
-    muted: options.muted ?? explicitMuted ?? (explicitBackground ? undefined : palette.muted),
-    surface: options.surface ?? pickString(themeVariables, 'mainBkg', 'secondaryColor') ?? palette.surface,
-    border: options.border ?? pickString(themeVariables, 'primaryBorderColor') ?? palette.border,
-  }
-
-  const font = options.font
-    ?? getString(mermaidConfig, 'fontFamily')
-    ?? pickString(themeVariables, 'fontFamily')
-    ?? 'Inter'
 
   const baseFontSize = clamp(
     getNumber(architecture, 'fontSize')
@@ -162,39 +96,7 @@ export function resolveArchitectureRenderConfig(
     serviceBorder: pickString(themeVariables, 'primaryBorderColor') ?? colors.border,
   }
 
-  const transparent = options.transparent ?? false
-  const renderOptions: RenderOptions = {
-    ...options,
-    bg: colors.bg,
-    fg: colors.fg,
-    line: colors.line,
-    accent: colors.accent,
-    muted: colors.muted,
-    surface: colors.surface,
-    border: colors.border,
-    font,
-    padding: options.padding ?? getNumber(architecture, 'padding'),
-    transparent,
-  }
-
-  return { renderOptions, colors, font, transparent, visual }
-}
-
-function resolveThemePalette(
-  mermaidConfig: MermaidFrontmatterMap,
-  themeVariables: MermaidFrontmatterMap | undefined,
-): DiagramColors {
-  const themeName = getString(mermaidConfig, 'theme')?.toLowerCase()
-  const themedPalette = themeName ? MERMAID_THEME_COLORS[themeName] : undefined
-  if (themedPalette) {
-    return themedPalette
-  }
-
-  if (getBoolean(themeVariables, 'darkMode')) {
-    return MERMAID_THEME_COLORS.dark!
-  }
-
-  return MERMAID_THEME_COLORS.default!
+  return { visual, padding: getNumber(architecture, 'padding') }
 }
 
 function pickString(map: MermaidFrontmatterMap | undefined, ...keys: string[]): string | undefined {
@@ -208,11 +110,6 @@ function pickString(map: MermaidFrontmatterMap | undefined, ...keys: string[]): 
 function getString(map: MermaidFrontmatterMap | undefined, key: string): string | undefined {
   const value = map?.[key]
   return typeof value === 'string' ? value : undefined
-}
-
-function getBoolean(map: MermaidFrontmatterMap | undefined, key: string): boolean | undefined {
-  const value = map?.[key]
-  return typeof value === 'boolean' ? value : undefined
 }
 
 function getNumber(map: MermaidFrontmatterMap | undefined, key: string): number | undefined {
@@ -239,59 +136,4 @@ function clamp(value: number, min: number, max: number): number {
 
 function isMap(value: MermaidConfigValue | undefined): value is MermaidFrontmatterMap {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-function readableTextColor(background: string, preferred: string): string {
-  const bg = parseHexColor(background)
-  const fg = parseHexColor(preferred)
-  if (!bg || !fg) return preferred
-
-  if (contrastRatio(bg, fg) >= 3.2) {
-    return preferred
-  }
-
-  return relativeLuminance(bg) < 0.36 ? '#F8FAFC' : '#0F172A'
-}
-
-function parseHexColor(value: string): { r: number; g: number; b: number } | undefined {
-  const normalized = value.trim().replace(/^#/, '')
-  if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(normalized)) return undefined
-
-  if (normalized.length === 3) {
-    return {
-      r: Number.parseInt(normalized[0]! + normalized[0]!, 16),
-      g: Number.parseInt(normalized[1]! + normalized[1]!, 16),
-      b: Number.parseInt(normalized[2]! + normalized[2]!, 16),
-    }
-  }
-
-  return {
-    r: Number.parseInt(normalized.slice(0, 2), 16),
-    g: Number.parseInt(normalized.slice(2, 4), 16),
-    b: Number.parseInt(normalized.slice(4, 6), 16),
-  }
-}
-
-function contrastRatio(
-  a: { r: number; g: number; b: number },
-  b: { r: number; g: number; b: number },
-): number {
-  const light = Math.max(relativeLuminance(a), relativeLuminance(b))
-  const dark = Math.min(relativeLuminance(a), relativeLuminance(b))
-  return (light + 0.05) / (dark + 0.05)
-}
-
-function relativeLuminance(color: { r: number; g: number; b: number }): number {
-  const channel = (value: number) => {
-    const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
-  }
-
-  return (
-    0.2126 * channel(color.r) +
-    0.7152 * channel(color.g) +
-    0.0722 * channel(color.b)
-  )
 }

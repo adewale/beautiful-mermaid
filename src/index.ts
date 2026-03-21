@@ -63,7 +63,7 @@ import { renderXYChartSvg } from './xychart/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg } from './architecture/renderer.ts'
-import { resolveArchitectureRenderConfig } from './architecture/config.ts'
+import { resolveArchitectureVisualConfig } from './architecture/config.ts'
 
 /**
  * Detect the diagram type from the mermaid source text.
@@ -194,10 +194,11 @@ export function renderMermaidSVG(
 
   switch (diagramType) {
     case 'architecture': {
-      const archConfig = resolveArchitectureRenderConfig(normalizedSource.frontmatter, options)
-      const diagram = parseArchitectureDiagram(normalizedSource.text)
-      const positioned = layoutArchitectureDiagram(diagram, archConfig.renderOptions)
-      return renderArchitectureSvg(positioned, archConfig.colors, archConfig.font, archConfig.transparent, archConfig.visual)
+      const archVisual = resolveArchitectureVisualConfig(normalizedSource.frontmatter, colors)
+      const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
+      const diagram = parseArchitectureDiagram(lines)
+      const positioned = layoutArchitectureDiagram(diagram, archOptions)
+      return renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { preprocessMermaidSource } from '../mermaid-source.ts'
 
 function layout(source: string) {
-  return layoutArchitectureDiagram(parseArchitectureDiagram(source))
+  return layoutArchitectureDiagram(parseArchitectureDiagram(preprocessMermaidSource(source).lines))
 }
 
 function pointToSegmentDistance(

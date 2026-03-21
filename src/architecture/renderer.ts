@@ -33,20 +33,23 @@ export function renderArchitectureSvg(
 
   const hasTitle = Boolean(diagram.accessibilityTitle)
   const hasDesc = Boolean(diagram.accessibilityDescription)
+  const uid = `arch-${hashDiagram(diagram)}`
+  const titleId = `${uid}-title`
+  const descId = `${uid}-desc`
   const a11yAttrs: Record<string, string | undefined> = {}
   if (hasTitle || hasDesc) {
     a11yAttrs['role'] = 'img'
     a11yAttrs['aria-roledescription'] = 'architecture'
   }
-  if (hasTitle) a11yAttrs['aria-labelledby'] = 'arch-a11y-title'
-  if (hasDesc) a11yAttrs['aria-describedby'] = 'arch-a11y-desc'
+  if (hasTitle) a11yAttrs['aria-labelledby'] = titleId
+  if (hasDesc) a11yAttrs['aria-describedby'] = descId
 
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
     style: archVars,
     attrs: a11yAttrs,
   }))
-  if (hasTitle) parts.push(`<title id="arch-a11y-title">${escapeXml(diagram.accessibilityTitle!)}</title>`)
-  if (hasDesc) parts.push(`<desc id="arch-a11y-desc">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
+  if (hasTitle) parts.push(`<title id="${titleId}">${escapeXml(diagram.accessibilityTitle!)}</title>`)
+  if (hasDesc) parts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
   parts.push(buildStyleBlock(font, false))
   parts.push(architectureStyles())
   parts.push('<defs>')
@@ -340,4 +343,14 @@ function segmentLength(a: Point, b: Point): number {
 
 function escapeAttr(text: string): string {
   return escapeXml(text)
+}
+
+function hashDiagram(diagram: PositionedArchitectureDiagram): string {
+  let h = 0x811c9dc5
+  const s = `${diagram.width}|${diagram.height}|${diagram.services.map(s => s.id).join(',')}|${diagram.groups.map(g => g.id).join(',')}`
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
 }

@@ -37,13 +37,16 @@ export function renderJourneySvg(
   const parts: string[] = []
 
   const accessibility = buildJourneyAccessibility(diagram)
+  const uid = `journey-${hashJourney(diagram)}`
+  const titleId = `${uid}-title`
+  const descId = `${uid}-desc`
 
-  parts.push(openJourneySvgTag(diagram, colors, transparent, accessibility))
+  parts.push(openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId))
   if (accessibility.title) {
-    parts.push(`<title id="journey-a11y-title">${escapeXml(accessibility.title)}</title>`)
+    parts.push(`<title id="${titleId}">${escapeXml(accessibility.title)}</title>`)
   }
   if (accessibility.description) {
-    parts.push(`<desc id="journey-a11y-desc">${escapeXml(accessibility.description)}</desc>`)
+    parts.push(`<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`)
   }
   parts.push(buildStyleBlock(font, false))
   parts.push(journeyStyles())
@@ -91,10 +94,12 @@ function openJourneySvgTag(
   colors: DiagramColors,
   transparent: boolean,
   accessibility: { title?: string; description?: string },
+  titleId: string,
+  descId: string,
 ): string {
   const attrs = ['role="img"', 'aria-roledescription="user journey"']
-  if (accessibility.title) attrs.push('aria-labelledby="journey-a11y-title"')
-  if (accessibility.description) attrs.push('aria-describedby="journey-a11y-desc"')
+  if (accessibility.title) attrs.push(`aria-labelledby="${titleId}"`)
+  if (accessibility.description) attrs.push(`aria-describedby="${descId}"`)
 
   return svgOpenTag(diagram.width, diagram.height, colors, transparent)
     .replace('>', ` ${attrs.join(' ')}>`)
@@ -198,6 +203,16 @@ function renderActorPill(pill: PositionedJourneyActorPill): string {
     ),
     '  </g>',
   ].join('\n')
+}
+
+function hashJourney(diagram: PositionedJourneyDiagram): string {
+  let h = 0x811c9dc5
+  const s = `${diagram.width}|${diagram.height}|${diagram.sections.map(s => s.tasks.length).join(',')}`
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
 }
 
 function escapeAttr(text: string): string {

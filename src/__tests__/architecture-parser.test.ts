@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
+import { preprocessMermaidSource } from '../mermaid-source.ts'
+
+function prep(text: string): string[] {
+  return preprocessMermaidSource(text).lines
+}
 
 describe('parseArchitectureDiagram', () => {
   it('parses groups, services, junctions, and labeled edges', () => {
-    const diagram = parseArchitectureDiagram(`architecture-beta
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
       group edge(cloud)[Edge]
       group app(server)[Application]
       service api(server)[Public API] in app
       junction q in app
       service db(database)[Primary DB]
       api:R --> L:db
-      api:B -[async]-> T:q`)
+      api:B -[async]-> T:q`))
 
     expect(diagram.groups).toHaveLength(2)
     expect(diagram.services).toHaveLength(2)
@@ -32,11 +37,11 @@ describe('parseArchitectureDiagram', () => {
   })
 
   it('parses service group-boundary endpoints', () => {
-    const diagram = parseArchitectureDiagram(`architecture-beta
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
       group storage(cloud)[Storage]
       service db(database)[Database] in storage
       service cache(disk)[Cache]
-      db{group}:R -[replicates]-> L:cache`)
+      db{group}:R -[replicates]-> L:cache`))
 
     expect(diagram.edges[0]!.source.boundary).toBe('group')
     expect(diagram.edges[0]!.source.id).toBe('db')
@@ -44,16 +49,16 @@ describe('parseArchitectureDiagram', () => {
   })
 
   it('preserves spaces inside edge labels', () => {
-    const diagram = parseArchitectureDiagram(`architecture-beta
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
       service api(server)[API]
       service db(database)[Database]
-      api:R -[reads from]-> L:db`)
+      api:R -[reads from]-> L:db`))
 
     expect(diagram.edges[0]!.label).toBe('reads from')
   })
 
   it('ignores comments and normalizes quoted multiline labels', () => {
-    const diagram = parseArchitectureDiagram(`---
+    const diagram = parseArchitectureDiagram(prep(`---
 config:
   theme: base
 ---
@@ -64,7 +69,7 @@ config:
       group edge(cloud)[Edge<br/>Layer]
       service api(server)["Public<br/>API"] in edge
       service db(database)[Primary DB]
-      api:R -["reads<br/>writes"]-> L:db`)
+      api:R -["reads<br/>writes"]-> L:db`))
 
     expect(diagram.groups[0]!.label).toBe('Edge\nLayer')
     expect(diagram.services[0]!.label).toBe('Public\nAPI')
@@ -72,17 +77,17 @@ config:
   })
 
   it('rejects group-boundary syntax on root services', () => {
-    expect(() => parseArchitectureDiagram(`architecture-beta
+    expect(() => parseArchitectureDiagram(prep(`architecture-beta
       service db(database)[Database]
       service api(server)[API]
-      db{group}:R --> L:api`)).toThrow('is not inside a group')
+      db{group}:R --> L:api`))).toThrow('is not inside a group')
   })
 
   it('parses accTitle and single-line accDescr', () => {
-    const diagram = parseArchitectureDiagram(`architecture-beta
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
       accTitle: System overview
       accDescr: Shows the main services and their connections
-      service api(server)[API]`)
+      service api(server)[API]`))
 
     expect(diagram.accessibilityTitle).toBe('System overview')
     expect(diagram.accessibilityDescription).toBe('Shows the main services and their connections')
@@ -90,31 +95,31 @@ config:
   })
 
   it('parses multiline accDescr blocks', () => {
-    const diagram = parseArchitectureDiagram(`architecture-beta
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
       accTitle: Architecture
       accDescr {
         This diagram shows
         the system architecture
       }
-      service api(server)[API]`)
+      service api(server)[API]`))
 
     expect(diagram.accessibilityTitle).toBe('Architecture')
     expect(diagram.accessibilityDescription).toBe('This diagram shows\nthe system architecture')
   })
 
   it('rejects unterminated accDescr blocks', () => {
-    expect(() => parseArchitectureDiagram(`architecture-beta
+    expect(() => parseArchitectureDiagram(prep(`architecture-beta
       accDescr {
         Never closed
-      service api(server)[API]`)).toThrow('Unterminated accDescr block')
+      service api(server)[API]`))).toThrow('Unterminated accDescr block')
   })
 
   it('converts architecture diagrams into graph layout input', () => {
-    const graph = architectureToMermaidGraph(parseArchitectureDiagram(`architecture-beta
+    const graph = architectureToMermaidGraph(parseArchitectureDiagram(prep(`architecture-beta
       group platform(cloud)[Platform]
       service gateway(server)[Gateway] in platform
       service db(database)[Database]
-      gateway:R --> L:db`))
+      gateway:R --> L:db`)))
 
     expect(graph.nodes.get('gateway')!.shape).toBe('service')
     expect(graph.nodes.get('db')!.shape).toBe('service')

@@ -69,17 +69,20 @@ export function renderTimelineSvg(
   const accessibleDescription = diagram.accessibilityDescription
   const familyPalettes = getTimelineFamilyPalettes(colors, timelineConfig, themeVariables)
   const allowMulticolor = !(timelineConfig.disableMulticolor && !useSectionFamilies)
-  const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription)
+  const uid = `tl-${hashTimeline(diagram)}`
+  const titleId = `${uid}-title`
+  const descId = `${uid}-desc`
+  const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
   parts.push(buildStyleBlock(font, false))
   parts.push(timelineStyles())
 
   if (accessibleTitle) {
-    parts.push(`<title id="bm-a11y-title">${escapeXml(accessibleTitle)}</title>`)
+    parts.push(`<title id="${titleId}">${escapeXml(accessibleTitle)}</title>`)
   }
   if (accessibleDescription) {
-    parts.push(`<desc id="bm-a11y-desc">${escapeXml(accessibleDescription)}</desc>`)
+    parts.push(`<desc id="${descId}">${escapeXml(accessibleDescription)}</desc>`)
   }
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
@@ -307,13 +310,25 @@ function readTimelineScale(
 function buildAccessibilityAttrs(
   title: string | undefined,
   description: string | undefined,
+  titleId: string,
+  descId: string,
 ): Record<string, string> {
   if (!title && !description) return {}
 
   const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = 'bm-a11y-title'
-  if (description) attrs['aria-describedby'] = 'bm-a11y-desc'
+  if (title) attrs['aria-labelledby'] = titleId
+  if (description) attrs['aria-describedby'] = descId
   return attrs
+}
+
+function hashTimeline(diagram: { width: number; height: number; sections: Array<{ periods: unknown[] }> }): string {
+  let h = 0x811c9dc5
+  const s = `${diagram.width}|${diagram.height}|${diagram.sections.map(s => s.periods.length).join(',')}`
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
 }
 
 function escapeAttr(text: string): string {

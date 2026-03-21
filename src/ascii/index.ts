@@ -32,7 +32,6 @@ import { renderTimelineAscii } from './timeline.ts'
 import { renderJourneyAscii } from './journey.ts'
 import { renderXYChartAscii } from './xychart.ts'
 import { renderArchitectureAscii } from './architecture.ts'
-import { resolveArchitectureRenderConfig } from '../architecture/config.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -145,9 +144,15 @@ export function renderMermaidASCII(
 
   switch (diagramType) {
     case 'architecture': {
-      const archConfig = resolveArchitectureRenderConfig(normalizedSource.frontmatter)
-      const archTheme = { ...theme, ...diagramColorsToAsciiTheme(archConfig.colors) }
-      return renderArchitectureAscii(normalizedSource.text, config, colorMode, archTheme)
+      const vars = normalizedSource.config.themeVariables
+      const archColors: import('../theme.ts').DiagramColors = {
+        bg: (vars?.background as string) ?? '#ffffff',
+        fg: (vars?.primaryTextColor as string) ?? (vars?.textColor as string) ?? '#27272A',
+        line: vars?.lineColor as string | undefined,
+        accent: vars?.primaryColor as string | undefined,
+      }
+      const archTheme = { ...theme, ...diagramColorsToAsciiTheme(archColors) }
+      return renderArchitectureAscii(normalizedSource.lines, config, colorMode, archTheme)
     }
 
     case 'xychart':
