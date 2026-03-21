@@ -7,6 +7,7 @@
 // Supported diagram types:
 //   - Flowcharts (graph TD / flowchart LR) — grid-based layout with A* pathfinding
 //   - State diagrams (stateDiagram-v2) — same pipeline as flowcharts
+//   - Architecture diagrams (architecture-beta) — dedicated entrypoint built on graph layout
 //   - Sequence diagrams (sequenceDiagram) — column-based timeline layout
 //   - Class diagrams (classDiagram) — level-based UML layout
 //   - ER diagrams (erDiagram) — grid layout with crow's foot notation
@@ -30,6 +31,7 @@ import { renderErAscii } from './er-diagram.ts'
 import { renderTimelineAscii } from './timeline.ts'
 import { renderJourneyAscii } from './journey.ts'
 import { renderXYChartAscii } from './xychart.ts'
+import { renderArchitectureAscii } from './architecture.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -69,7 +71,8 @@ export interface AsciiRenderOptions {
  * Detect the diagram type from the mermaid source text.
  * Mirrors the detection logic in src/index.ts for the SVG renderer.
  */
-function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
+function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
+  if (/^architecture-beta\s*$/.test(firstLine)) return 'architecture'
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
   if (/^timeline\s*$/.test(firstLine)) return 'timeline'
   if (/^journey\s*$/.test(firstLine)) return 'journey'
@@ -79,6 +82,15 @@ function detectDiagramType(firstLine: string): 'flowchart' | 'sequence' | 'class
 
   // Default: flowchart/state (handled by parseMermaid internally)
   return 'flowchart'
+}
+
+function firstSignificantLine(text: string): string {
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim()
+    if (line.length === 0 || line.startsWith('%%')) continue
+    return line.split(';')[0]!.trim().toLowerCase()
+  }
+  return ''
 }
 
 /**
@@ -131,6 +143,18 @@ export function renderMermaidASCII(
   const diagramType = detectDiagramType(normalizedSource.firstLine)
 
   switch (diagramType) {
+    case 'architecture': {
+      const vars = normalizedSource.config.themeVariables
+      const archColors: import('../theme.ts').DiagramColors = {
+        bg: (vars?.background as string) ?? '#ffffff',
+        fg: (vars?.primaryTextColor as string) ?? (vars?.textColor as string) ?? '#27272A',
+        line: vars?.lineColor as string | undefined,
+        accent: vars?.primaryColor as string | undefined,
+      }
+      const archTheme = { ...theme, ...diagramColorsToAsciiTheme(archColors) }
+      return renderArchitectureAscii(normalizedSource.lines, config, colorMode, archTheme)
+    }
+
     case 'xychart':
       return renderXYChartAscii(normalizedSource.text, config, colorMode, theme, normalizedSource.frontmatter)
 

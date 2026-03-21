@@ -27,7 +27,7 @@ export function clipEdgeToShape(
   if (points.length < 2) return points
 
   // Only clip non-rectangular shapes
-  if (node.shape === 'rectangle' || node.shape === 'rounded' || node.shape === 'stadium') {
+  if (node.shape === 'rectangle' || node.shape === 'service' || node.shape === 'rounded' || node.shape === 'stadium') {
     return points
   }
 

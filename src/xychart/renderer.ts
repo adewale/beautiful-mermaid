@@ -389,6 +389,7 @@ function buildSvgMetadata(chart: PositionedXYChart): {
       attrs: {
         id: svgId,
         class: 'xychart',
+        role: (accTitleId || accDescId) ? 'img' : undefined,
         'aria-roledescription': 'xychart',
         'aria-labelledby': accTitleId,
         'aria-describedby': accDescId,

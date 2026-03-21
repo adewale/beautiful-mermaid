@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665.966 226" width="665.966" height="226" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<style>
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-label { fill: var(--_text-sec); }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
+  .architecture-service-label { fill: var(--_text); }
+  .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: var(--_text-muted); }
+  .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
+  .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
+  .architecture-icon-bg { fill: color-mix(in srgb, var(--_arrow) 12%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 26%, var(--bg)); stroke-width: 1; }
+  .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-fill { fill: color-mix(in srgb, var(--_arrow) 30%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
+  .architecture-icon-glyph { fill: var(--_arrow); }
+</style>
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="architecture-group" data-id="edge" data-label="Edge">
+  <rect class="architecture-group-frame" x="40" y="40" width="0" height="0" rx="0" ry="0" />
+  <rect class="architecture-group-band" x="40" y="40" width="0" height="28" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="cloud">
+  <rect class="architecture-icon-bg" x="50" y="46" width="16" height="16" rx="0" ry="0" />
+  <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
+<circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
+<circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
+<path class="architecture-icon-mark" d="M 52.9952 56.355199999999996 H 62.8576" />
+</g>
+  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Edge</text>
+</g>
+<g class="architecture-group" data-id="app" data-label="Application">
+  <rect class="architecture-group-frame" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
+  <rect class="architecture-group-band" x="40" y="76" width="380.58500000000004" height="28" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-bg" x="50" y="82" width="16" height="16" rx="0" ry="0" />
+  <rect class="architecture-icon-mark" x="54.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 55.644800000000004 88.8224 H 60.355199999999996" />
+<path class="architecture-icon-mark" d="M 55.644800000000004 90.8832 H 60.355199999999996" />
+<circle class="architecture-icon-fill" cx="56.2336" cy="92.3552" r="0.4416" />
+<circle class="architecture-icon-fill" cx="59.7664" cy="92.3552" r="0.4416" />
+</g>
+  <text x="76" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
+</g>
+<polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,146 337.278,146 337.278,158 482.58500000000004,158" marker-end="url(#architecture-arrow-end)" />
+<polyline class="architecture-edge" data-from="api" data-to="bus" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,147 390.58500000000004,147 390.58500000000004,120" marker-end="url(#architecture-arrow-end)" />
+<rect x="219.97825" y="132.85" width="78.614" height="28.3" class="architecture-edge-label-bg" rx="0" ry="0" />
+<text x="259.28525" y="147" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" dy="3.8499999999999996">async fan-out</text>
+<g class="architecture-junction" data-id="bus">
+  <circle class="architecture-junction-ring" cx="390.58500000000004" cy="134" r="8" />
+  <circle class="architecture-junction-core" cx="390.58500000000004" cy="134" r="4.5" />
+</g>
+<g class="architecture-service" data-id="db" data-label="Primary DB">
+  <rect class="architecture-service-card" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
+  <rect class="architecture-service-accent" x="482.58500000000004" y="134" width="4" height="48" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="database">
+  <rect class="architecture-icon-bg" x="496.58500000000004" y="149" width="18" height="18" rx="0" ry="0" />
+  <ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="155.12" rx="4.32" ry="1.8" />
+<path class="architecture-icon-mark" d="M 501.26500000000004 155.12 V 161.6" />
+<path class="architecture-icon-mark" d="M 509.90500000000003 155.12 V 161.6" />
+<ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="158.36" rx="4.32" ry="1.8" />
+<ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="161.6" rx="4.32" ry="1.8" />
+</g>
+  <text x="528.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Primary DB</text>
+</g>
+<g class="architecture-service" data-id="api" data-label="Public API">
+  <rect class="architecture-service-card" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
+  <rect class="architecture-service-accent" x="56" y="122" width="4" height="48" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-bg" x="70" y="137" width="18" height="18" rx="0" ry="0" />
+  <rect class="architecture-icon-mark" x="75.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 76.12 144.56 H 81.88" />
+<path class="architecture-icon-mark" d="M 76.12 147.08 H 81.88" />
+<circle class="architecture-icon-fill" cx="76.84" cy="148.88" r="0.54" />
+<circle class="architecture-icon-fill" cx="81.16" cy="148.88" r="0.54" />
+</g>
+  <text x="102" y="146" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
+</g>
+</svg>
