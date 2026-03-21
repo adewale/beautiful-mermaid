@@ -1,22 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 901.1 446.6" width="901.1" height="446.6" style="--bg:#1C1C1A;--fg:#E8E4DC;--line:#666660;--accent:#C87070;--muted:#908880;--surface:#2A2926;--border:#444440;background:var(--bg)" role="img" aria-roledescription="user journey" aria-labelledby="journey-a11y-title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 901.1 446.6" width="901.1" height="446.6" style="--bg:#1C1C1A;--fg:#E8E4DC;--line:#666660;--accent:#C87070;--muted:#908880;--surface:#2A2926;--border:#444440;background:#1C1C1A" role="img" aria-roledescription="user journey" aria-labelledby="journey-a11y-title">
 <title id="journey-a11y-title">Research Publication Journey</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Palatino:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Palatino', system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+    --_text:          #E8E4DC;
+    --_text-sec:      #908880;
+    --_text-muted:    #908880;
+    --_text-faint:    #4f4e4b;
+    --_line:          #666660;
+    --_arrow:         #C87070;
+    --_node-fill:     #2A2926;
+    --_node-stroke:   #444440;
+    --_group-fill:    #1C1C1A;
+    --_group-hdr:     #262624;
+    --_inner-stroke:  #343431;
+    --_key-badge:     #30302d;
   }
   .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }
 </style>
@@ -24,17 +24,17 @@
     <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#ffffff" flood-opacity="0.12" />
   </filter></defs>
 <style>
-  .journey-title { fill: var(--_text); }
-  .journey-section-bg { fill: color-mix(in srgb, var(--_node-fill) 88%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-section-label { fill: var(--_text-sec); }
-  .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-task-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
-  .journey-task-text { fill: var(--_text); }
-  .journey-score-cell-filled { fill: var(--_arrow); stroke: var(--_arrow); stroke-width: 1; }
-  .journey-score-cell-empty { fill: color-mix(in srgb, var(--bg) 55%, var(--_node-fill)); stroke: color-mix(in srgb, var(--_node-stroke) 82%, var(--bg)); stroke-width: 1; }
-  .journey-actor-pill { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 22%, var(--bg)); stroke-width: 1; }
-  .journey-actor-text { fill: var(--_text-sec); }
+  .journey-title { fill: #E8E4DC; }
+  .journey-section-bg { fill: #282725; stroke: #444440; stroke-width: 1; }
+  .journey-section-band { fill: #2a2321; stroke: #444440; stroke-width: 1; }
+  .journey-section-label { fill: #908880; }
+  .journey-task-card { fill: #2A2926; stroke: #444440; stroke-width: 1; }
+  .journey-task-accent { fill: #3b2b29; }
+  .journey-task-text { fill: #E8E4DC; }
+  .journey-score-cell-filled { fill: #C87070; stroke: #C87070; stroke-width: 1; }
+  .journey-score-cell-empty { fill: #22221f; stroke: #3d3d39; stroke-width: 1; }
+  .journey-actor-pill { fill: #2a2321; stroke: #422e2d; stroke-width: 1; }
+  .journey-actor-text { fill: #908880; }
 </style>
 <g class="journey-section" data-id="section-0" data-label="Discovery">
   <rect class="journey-section-bg" x="32" y="75.4" width="256" height="250" rx="0" ry="0" />

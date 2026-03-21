@@ -1,21 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1463.7760000000003 307.8" width="1463.7760000000003" height="307.8" style="--bg:#1C1C1A;--fg:#E8E4DC;--line:#666660;--accent:#C87070;--muted:#908880;--surface:#2A2926;--border:#444440;background:var(--bg)" role="img" aria-labelledby="bm-a11y-title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1463.7760000000003 307.8" width="1463.7760000000003" height="307.8" style="--bg:#1C1C1A;--fg:#E8E4DC;--line:#666660;--accent:#C87070;--muted:#908880;--surface:#2A2926;--border:#444440;background:#1C1C1A" role="img" aria-labelledby="bm-a11y-title">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Palatino:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Palatino', system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+    --_text:          #E8E4DC;
+    --_text-sec:      #908880;
+    --_text-muted:    #908880;
+    --_text-faint:    #4f4e4b;
+    --_line:          #666660;
+    --_arrow:         #C87070;
+    --_node-fill:     #2A2926;
+    --_node-stroke:   #444440;
+    --_group-fill:    #1C1C1A;
+    --_group-hdr:     #262624;
+    --_inner-stroke:  #343431;
+    --_key-badge:     #30302d;
   }
   .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }
 </style>
@@ -23,38 +23,38 @@
     <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#ffffff" flood-opacity="0.12" />
   </filter></defs>
 <style>
-  .timeline-title { fill: var(--_text); }
-  .timeline-rail { stroke: var(--_line); stroke-width: 1.5; stroke-linecap: round; }
-  .timeline-section-bg { fill: var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg))); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
-  .timeline-section-band { fill: var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg))); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
-  .timeline-section-label { fill: var(--tl-label, var(--_text-sec)); }
-  .timeline-stem { stroke: var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line))); stroke-width: 1; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-line, var(--_arrow)); stroke-width: 1.5; }
-  .timeline-marker-core { fill: var(--tl-accent, var(--_arrow)); }
-  .timeline-period-pill { fill: var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg))); stroke: var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg))); stroke-width: 1; }
-  .timeline-period-text { fill: var(--tl-label, var(--_text)); }
-  .timeline-event-card { fill: var(--tl-event-fill, var(--_node-fill)); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: 1; }
-  .timeline-event-accent { fill: var(--tl-event-accent, color-mix(in srgb, var(--_arrow) 18%, var(--bg))); }
-  .timeline-event-text { fill: var(--tl-label, var(--_text-muted)); }
+  .timeline-title { fill: #E8E4DC; }
+  .timeline-rail { stroke: #666660; stroke-width: 1.5; stroke-linecap: round; }
+  .timeline-section-bg { fill: #282725; stroke: #444440; stroke-width: 1; }
+  .timeline-section-band { fill: #2a2321; stroke: #444440; stroke-width: 1; }
+  .timeline-section-label { fill: #908880; }
+  .timeline-stem { stroke: #856965; stroke-width: 1; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: #1C1C1A; stroke: #C87070; stroke-width: 1.5; }
+  .timeline-marker-core { fill: #C87070; }
+  .timeline-period-pill { fill: #282220; stroke: #3e2d2b; stroke-width: 1; }
+  .timeline-period-text { fill: #E8E4DC; }
+  .timeline-event-card { fill: #2A2926; stroke: #444440; stroke-width: 1; }
+  .timeline-event-accent { fill: #3b2b29; }
+  .timeline-event-text { fill: #908880; }
 </style>
 <title id="bm-a11y-title">History of Data Visualization</title>
-<g class="timeline-section" data-id="section-0" data-label="Early Foundations" data-family="0" style="--tl-accent:var(--_arrow);--tl-fill:var(--_arrow);--tl-label:var(--_text);--tl-line:color-mix(in srgb, var(--_arrow) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, var(--_arrow) 6%, var(--bg));--tl-section-band:color-mix(in srgb, var(--_arrow) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, var(--_arrow) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, var(--_arrow) 36%, color-mix(in srgb, var(--_arrow) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, var(--_arrow) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, var(--_arrow) 26%, var(--bg))">
+<g class="timeline-section" data-id="section-0" data-label="Early Foundations" data-family="0" style="--tl-accent:#C87070;--tl-fill:#C87070;--tl-label:#E8E4DC;--tl-line:#956b68;--tl-section-bg:#26211f;--tl-section-band:#312624;--tl-pill-fill:#2f2523;--tl-pill-stroke:#a76d6b;--tl-event-fill:#433432;--tl-event-accent:#493230">
   <rect class="timeline-section-bg" x="32" y="75.4" width="400.832" height="188.79999999999998" rx="0" ry="0" />
   <rect class="timeline-section-band" x="32" y="75.4" width="400.832" height="24" rx="0" ry="0" />
   <text x="44" y="87.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Early Foundations</text>
 </g>
-<g class="timeline-section" data-id="section-1" data-label="Statistical Graphics" data-family="1" style="--tl-accent:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-fill:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 26%, var(--bg))">
+<g class="timeline-section" data-id="section-1" data-label="Statistical Graphics" data-family="1" style="--tl-accent:#ad6d6c;--tl-fill:#ad6d6c;--tl-label:#E8E4DC;--tl-line:#886966;--tl-section-bg:#25211f;--tl-section-band:#2d2624;--tl-pill-fill:#2c2523;--tl-pill-stroke:#956a68;--tl-event-fill:#3f3431;--tl-event-accent:#42312f">
   <rect class="timeline-section-bg" x="460.832" y="75.4" width="378.15200000000004" height="188.79999999999998" rx="0" ry="0" />
   <rect class="timeline-section-band" x="460.832" y="75.4" width="378.15200000000004" height="24" rx="0" ry="0" />
   <text x="472.832" y="87.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Statistical Graphics</text>
 </g>
-<g class="timeline-section" data-id="section-2" data-label="Modern Era" data-family="2" style="--tl-accent:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-fill:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 26%, var(--bg))">
+<g class="timeline-section" data-id="section-2" data-label="Modern Era" data-family="2" style="--tl-accent:#b27a76;--tl-fill:#b27a76;--tl-label:#E8E4DC;--tl-line:#8a706b;--tl-section-bg:#252220;--tl-section-band:#2e2725;--tl-pill-fill:#2d2624;--tl-pill-stroke:#98746f;--tl-event-fill:#403633;--tl-event-accent:#433432">
   <rect class="timeline-section-bg" x="866.984" y="75.4" width="564.7920000000001" height="204.4" rx="0" ry="0" />
   <rect class="timeline-section-band" x="866.984" y="75.4" width="564.7920000000001" height="24" rx="0" ry="0" />
   <text x="878.984" y="87.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Modern Era</text>
 </g>
 <line class="timeline-rail" x1="132.94" y1="167" x2="1343.1480000000001" y2="167" />
-<g class="timeline-period" data-id="period-0" data-label="1786" data-section="Early Foundations" data-family="0" style="--tl-accent:var(--_arrow);--tl-fill:var(--_arrow);--tl-label:var(--_text);--tl-line:color-mix(in srgb, var(--_arrow) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, var(--_arrow) 6%, var(--bg));--tl-section-band:color-mix(in srgb, var(--_arrow) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, var(--_arrow) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, var(--_arrow) 36%, color-mix(in srgb, var(--_arrow) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, var(--_arrow) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, var(--_arrow) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-0" data-label="1786" data-section="Early Foundations" data-family="0" style="--tl-accent:#C87070;--tl-fill:#C87070;--tl-label:#E8E4DC;--tl-line:#956b68;--tl-section-bg:#26211f;--tl-section-band:#312624;--tl-pill-fill:#2f2523;--tl-pill-stroke:#a76d6b;--tl-event-fill:#433432;--tl-event-accent:#493230">
   <line class="timeline-stem" x1="132.94" y1="175" x2="132.94" y2="185" />
   <rect class="timeline-period-pill" x="96.94" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="132.94" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1786</text>
@@ -66,7 +66,7 @@
   <text x="65.99999999999999" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="65.99999999999999" dy="-3.6000000000000014">William Playfair invents bar</tspan><tspan x="65.99999999999999" dy="15.600000000000001">chart</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-1" data-label="1858" data-section="Early Foundations" data-family="0" style="--tl-accent:var(--_arrow);--tl-fill:var(--_arrow);--tl-label:var(--_text);--tl-line:color-mix(in srgb, var(--_arrow) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, var(--_arrow) 6%, var(--bg));--tl-section-band:color-mix(in srgb, var(--_arrow) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, var(--_arrow) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, var(--_arrow) 36%, color-mix(in srgb, var(--_arrow) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, var(--_arrow) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, var(--_arrow) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-1" data-label="1858" data-section="Early Foundations" data-family="0" style="--tl-accent:#C87070;--tl-fill:#C87070;--tl-label:#E8E4DC;--tl-line:#956b68;--tl-section-bg:#26211f;--tl-section-band:#312624;--tl-pill-fill:#2f2523;--tl-pill-stroke:#a76d6b;--tl-event-fill:#433432;--tl-event-accent:#493230">
   <line class="timeline-stem" x1="327.356" y1="175" x2="327.356" y2="185" />
   <rect class="timeline-period-pill" x="291.356" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="327.356" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1858</text>
@@ -78,7 +78,7 @@
   <text x="255.88" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="255.88" dy="-3.6000000000000014">Florence Nightingale&#39;s polar</tspan><tspan x="255.88" dy="15.600000000000001">area diagram</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-2" data-label="1900" data-section="Statistical Graphics" data-family="1" style="--tl-accent:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-fill:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-2" data-label="1900" data-section="Statistical Graphics" data-family="1" style="--tl-accent:#ad6d6c;--tl-fill:#ad6d6c;--tl-label:#E8E4DC;--tl-line:#886966;--tl-section-bg:#25211f;--tl-section-band:#2d2624;--tl-pill-fill:#2c2523;--tl-pill-stroke:#956a68;--tl-event-fill:#3f3431;--tl-event-accent:#42312f">
   <line class="timeline-stem" x1="559.1800000000001" y1="175" x2="559.1800000000001" y2="185" />
   <rect class="timeline-period-pill" x="523.1800000000001" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="559.1800000000001" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1900</text>
@@ -90,7 +90,7 @@
   <text x="494.83200000000005" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="494.83200000000005" dy="-3.6000000000000014">Karl Pearson&#39;s histogram</tspan><tspan x="494.83200000000005" dy="15.600000000000001">formalization</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-3" data-label="1914" data-section="Statistical Graphics" data-family="1" style="--tl-accent:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-fill:color-mix(in srgb, var(--_arrow) 72%, var(--_line));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 72%, var(--_line)) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-3" data-label="1914" data-section="Statistical Graphics" data-family="1" style="--tl-accent:#ad6d6c;--tl-fill:#ad6d6c;--tl-label:#E8E4DC;--tl-line:#886966;--tl-section-bg:#25211f;--tl-section-band:#2d2624;--tl-pill-fill:#2c2523;--tl-pill-stroke:#956a68;--tl-event-fill:#3f3431;--tl-event-accent:#42312f">
   <line class="timeline-stem" x1="742.256" y1="175" x2="742.256" y2="185" />
   <rect class="timeline-period-pill" x="706.256" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="742.256" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1914</text>
@@ -102,7 +102,7 @@
   <text x="679.528" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="679.528" dy="-3.6000000000000014">Willard Brinton&#39;s Graphic</tspan><tspan x="679.528" dy="15.600000000000001">Methods</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-4" data-label="1967" data-section="Modern Era" data-family="2" style="--tl-accent:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-fill:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-4" data-label="1967" data-section="Modern Era" data-family="2" style="--tl-accent:#b27a76;--tl-fill:#b27a76;--tl-label:#E8E4DC;--tl-line:#8a706b;--tl-section-bg:#252220;--tl-section-band:#2e2725;--tl-pill-fill:#2d2624;--tl-pill-stroke:#98746f;--tl-event-fill:#403633;--tl-event-accent:#433432">
   <line class="timeline-stem" x1="971.812" y1="175" x2="971.812" y2="185" />
   <rect class="timeline-period-pill" x="935.812" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="971.812" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1967</text>
@@ -114,7 +114,7 @@
   <text x="900.984" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="900.984" dy="-3.6000000000000014">Jacques Bertin&#39;s Semiology</tspan><tspan x="900.984" dy="15.600000000000001">of Graphics</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-5" data-label="1977" data-section="Modern Era" data-family="2" style="--tl-accent:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-fill:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-5" data-label="1977" data-section="Modern Era" data-family="2" style="--tl-accent:#b27a76;--tl-fill:#b27a76;--tl-label:#E8E4DC;--tl-line:#8a706b;--tl-section-bg:#252220;--tl-section-band:#2e2725;--tl-pill-fill:#2d2624;--tl-pill-stroke:#98746f;--tl-event-fill:#403633;--tl-event-accent:#433432">
   <line class="timeline-stem" x1="1165.5800000000002" y1="175" x2="1165.5800000000002" y2="185" />
   <rect class="timeline-period-pill" x="1129.5800000000002" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="1165.5800000000002" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1977</text>
@@ -126,7 +126,7 @@
   <text x="1098.64" y="220.6" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400"><tspan x="1098.64" dy="-3.6000000000000014">John Tukey&#39;s Exploratory</tspan><tspan x="1098.64" dy="15.600000000000001">Data Analysis</tspan></text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-6" data-label="1983" data-section="Modern Era" data-family="2" style="--tl-accent:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-fill:color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec));--tl-label:var(--_text);--tl-line:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line));--tl-section-bg:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 6%, var(--bg));--tl-section-band:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 36%, color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 48%, var(--_line)));--tl-event-fill:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 16%, var(--_node-fill));--tl-event-accent:color-mix(in srgb, color-mix(in srgb, var(--_arrow) 60%, var(--_text-sec)) 26%, var(--bg))">
+<g class="timeline-period" data-id="period-6" data-label="1983" data-section="Modern Era" data-family="2" style="--tl-accent:#b27a76;--tl-fill:#b27a76;--tl-label:#E8E4DC;--tl-line:#8a706b;--tl-section-bg:#252220;--tl-section-band:#2e2725;--tl-pill-fill:#2d2624;--tl-pill-stroke:#98746f;--tl-event-fill:#403633;--tl-event-accent:#433432">
   <line class="timeline-stem" x1="1343.1480000000001" y1="175" x2="1343.1480000000001" y2="185" />
   <rect class="timeline-period-pill" x="1307.1480000000001" y="113.4" width="72" height="31.6" rx="0" ry="0" />
   <text x="1343.1480000000001" y="129.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">1983</text>
