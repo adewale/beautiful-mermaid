@@ -12,9 +12,6 @@ mkdirSync('tufte-mocks', { recursive: true })
 const tufte = THEMES['tufte']!
 const tufteOpts = { ...tufte, font: 'Palatino' }
 
-const tufteD = THEMES['tufte-dark']!
-const tufteDarkOpts = { ...tufteD, font: 'Palatino' }
-
 // ============================================================================
 // Diagram sources
 // ============================================================================
@@ -233,7 +230,6 @@ function svgToPng(svg: string, scale: number = 2): Buffer {
 
 const themes = [
   { suffix: 'tufte-light', opts: tufteOpts },
-  { suffix: 'tufte-dark', opts: tufteDarkOpts },
   { suffix: 'zinc-light', opts: {} },
 ]
 
@@ -257,4 +253,4 @@ console.log('\nDiagram types:')
 for (const { name } of diagrams) {
   console.log(`  ${name}`)
 }
-console.log('\nThemes: tufte-light, tufte-dark, zinc-light')
+console.log('\nThemes: tufte-light, zinc-light')
