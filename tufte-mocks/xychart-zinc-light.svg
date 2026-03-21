@@ -1,52 +1,52 @@
-<svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg);max-width:700px" id="mermaid-1qt3stc" class="xychart" aria-roledescription="xychart">
+<svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;background:#FFFFFF;max-width:700px" id="mermaid-1qt3stc" class="xychart" aria-roledescription="xychart">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
   }
 </style>
 <style>
-  .xychart-grid { stroke: color-mix(in srgb, var(--fg) 14%, transparent); stroke-width: 1; }
+  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
   .xychart-axis-line { fill: none; }
   .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: var(--_text-sec); }
-  .xychart-y-axis-line { stroke: var(--_text-sec); }
-  .xychart-x-tick { stroke: var(--_text-sec); }
-  .xychart-y-tick { stroke: var(--_text-sec); }
+  .xychart-x-axis-line { stroke: #7d7d7f; }
+  .xychart-y-axis-line { stroke: #7d7d7f; }
+  .xychart-x-tick { stroke: #7d7d7f; }
+  .xychart-y-tick { stroke: #7d7d7f; }
   .xychart-bar { stroke: none; }
   .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-dot { stroke: var(--bg); stroke-width: 2; }
-  .xychart-label { fill: var(--_text); }
-  .xychart-x-label { fill: var(--_text); }
-  .xychart-y-label { fill: var(--_text); }
-  .xychart-axis-title { fill: var(--_text); }
-  .xychart-x-axis-title { fill: var(--_text); }
-  .xychart-y-axis-title { fill: var(--_text); }
-  .xychart-title { fill: var(--_text); }
-  .xychart-data-label { fill: var(--_text); pointer-events: none; }
+  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #27272A; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
   svg {
-    --xychart-color-0: var(--accent, #3b82f6);
+    --xychart-color-0: #3b82f6;
     --xychart-color-1: #0d5ba5;
   }
-  .xychart-bar.xychart-color-0 { fill: var(--xychart-color-0); }
-  path.xychart-color-0, line.xychart-color-0 { stroke: var(--xychart-color-0); }
-  circle.xychart-color-0 { fill: var(--xychart-color-0); }
-  .xychart-bar.xychart-color-1 { fill: var(--xychart-color-1); }
-  path.xychart-color-1, line.xychart-color-1 { stroke: var(--xychart-color-1); }
-  circle.xychart-color-1 { fill: var(--xychart-color-1); }
+  .xychart-bar.xychart-color-0 { fill: #3b82f6; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #3b82f6; }
+  circle.xychart-color-0 { fill: #3b82f6; }
+  .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
+  circle.xychart-color-1 { fill: #0d5ba5; }
 </style>
 <line x1="67.78" y1="469" x2="700" y2="469" class="xychart-grid"/>
 <line x1="67.78" y1="421.33" x2="700" y2="421.33" class="xychart-grid"/>
