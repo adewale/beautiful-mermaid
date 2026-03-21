@@ -24,14 +24,16 @@ export function renderArchitectureSvg(
   visual: ArchitectureVisualConfig = DEFAULT_ARCHITECTURE_VISUAL,
 ): string {
   const parts: string[] = []
-  const cssVars = {
-    '--arch-group-fill': visual.groupSurface,
-    '--arch-group-stroke': visual.groupBorder,
-    '--arch-service-fill': visual.serviceSurface,
-    '--arch-service-stroke': visual.serviceBorder,
-  }
+  const archVars = [
+    visual.groupSurface ? `--arch-group-fill:${visual.groupSurface}` : '',
+    visual.groupBorder ? `--arch-group-stroke:${visual.groupBorder}` : '',
+    visual.serviceSurface ? `--arch-service-fill:${visual.serviceSurface}` : '',
+    visual.serviceBorder ? `--arch-service-stroke:${visual.serviceBorder}` : '',
+  ].filter(Boolean).join(';')
 
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, cssVars))
+  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
+    style: archVars,
+  }))
   parts.push(buildStyleBlock(font, false))
   parts.push(architectureStyles())
   parts.push('<defs>')

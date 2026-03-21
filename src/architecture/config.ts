@@ -1,6 +1,6 @@
 import type { DiagramColors } from '../theme.ts'
 import { DEFAULTS, THEMES } from '../theme.ts'
-import type { MermaidSourceMap, MermaidSourceValue } from '../mermaid-source.ts'
+import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
 import type { RenderOptions } from '../types.ts'
 
 export interface ArchitectureVisualConfig {
@@ -92,7 +92,7 @@ export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
 }
 
 export function resolveArchitectureRenderConfig(
-  mermaidConfig: MermaidSourceMap,
+  mermaidConfig: MermaidFrontmatterMap,
   options: RenderOptions = {},
 ): ResolvedArchitectureRenderConfig {
   const themeVariables = getMap(mermaidConfig, 'themeVariables')
@@ -181,8 +181,8 @@ export function resolveArchitectureRenderConfig(
 }
 
 function resolveThemePalette(
-  mermaidConfig: MermaidSourceMap,
-  themeVariables: MermaidSourceMap | undefined,
+  mermaidConfig: MermaidFrontmatterMap,
+  themeVariables: MermaidFrontmatterMap | undefined,
 ): DiagramColors {
   const themeName = getString(mermaidConfig, 'theme')?.toLowerCase()
   const themedPalette = themeName ? MERMAID_THEME_COLORS[themeName] : undefined
@@ -197,7 +197,7 @@ function resolveThemePalette(
   return MERMAID_THEME_COLORS.default!
 }
 
-function pickString(map: MermaidSourceMap | undefined, ...keys: string[]): string | undefined {
+function pickString(map: MermaidFrontmatterMap | undefined, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = getString(map, key)
     if (value) return value
@@ -205,26 +205,26 @@ function pickString(map: MermaidSourceMap | undefined, ...keys: string[]): strin
   return undefined
 }
 
-function getString(map: MermaidSourceMap | undefined, key: string): string | undefined {
+function getString(map: MermaidFrontmatterMap | undefined, key: string): string | undefined {
   const value = map?.[key]
   return typeof value === 'string' ? value : undefined
 }
 
-function getBoolean(map: MermaidSourceMap | undefined, key: string): boolean | undefined {
+function getBoolean(map: MermaidFrontmatterMap | undefined, key: string): boolean | undefined {
   const value = map?.[key]
   return typeof value === 'boolean' ? value : undefined
 }
 
-function getNumber(map: MermaidSourceMap | undefined, key: string): number | undefined {
+function getNumber(map: MermaidFrontmatterMap | undefined, key: string): number | undefined {
   return toNumber(map?.[key])
 }
 
-function getMap(map: MermaidSourceMap | undefined, key: string): MermaidSourceMap | undefined {
+function getMap(map: MermaidFrontmatterMap | undefined, key: string): MermaidFrontmatterMap | undefined {
   const value = map?.[key]
   return isMap(value) ? value : undefined
 }
 
-function toNumber(value: MermaidSourceValue | undefined): number | undefined {
+function toNumber(value: MermaidConfigValue | undefined): number | undefined {
   if (typeof value === 'number') return value
   if (typeof value !== 'string') return undefined
 
@@ -237,7 +237,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function isMap(value: MermaidSourceValue | undefined): value is MermaidSourceMap {
+function isMap(value: MermaidConfigValue | undefined): value is MermaidFrontmatterMap {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 

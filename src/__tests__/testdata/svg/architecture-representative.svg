@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 609.966 182" width="609.966" height="182" style="--bg:#ffffff;--fg:#1f2937;--line:#64748b;--accent:#2563eb;--muted:#6b7280;--surface:#f6f8fc;--border:#cbd5e1;--arch-group-fill:#f6f8fc;--arch-group-stroke:#cbd5e1;--arch-service-fill:#f6f8fc;--arch-service-stroke:#cbd5e1;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 609.966 182" width="609.966" height="182" style="--bg:#ffffff;--fg:#1f2937;--line:#64748b;--accent:#2563eb;--muted:#6b7280;--surface:#f6f8fc;--border:#cbd5e1;background:var(--bg);--arch-group-fill:#f6f8fc;--arch-group-stroke:#cbd5e1;--arch-service-fill:#f6f8fc;--arch-service-stroke:#cbd5e1" style="--arch-group-fill:#f6f8fc;--arch-group-stroke:#cbd5e1;--arch-service-fill:#f6f8fc;--arch-service-stroke:#cbd5e1">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }

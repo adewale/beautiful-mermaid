@@ -3,7 +3,7 @@ import { resolveArchitectureRenderConfig } from '../architecture/config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 
 function resolve(text: string, options = {}) {
-  return resolveArchitectureRenderConfig(preprocessMermaidSource(text).config, options)
+  return resolveArchitectureRenderConfig(preprocessMermaidSource(text).frontmatter, options)
 }
 
 describe('resolveArchitectureRenderConfig', () => {
