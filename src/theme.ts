@@ -157,6 +157,11 @@ export const THEMES: Record<string, DiagramColors> = {
     bg: '#282c34', fg: '#abb2bf',
     line: '#4b5263', accent: '#c678dd', muted: '#5c6370',
   },
+  'salmon': {
+    bg: '#FFFBF5', fg: '#521000',
+    line: '#EBD5C1', accent: '#FF4801', muted: '#85532E',
+    surface: '#FFFDFB', border: '#EBD5C1',
+  },
   'tufte': {
     bg: '#FFFFF8', fg: '#111111',
     line: '#AAAAAA', accent: '#7A0000', muted: '#888888',

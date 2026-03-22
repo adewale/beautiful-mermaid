@@ -228,9 +228,13 @@ function svgToPng(svg: string, scale: number = 2): Buffer {
 // Generate all outputs
 // ============================================================================
 
+const salmon = THEMES['salmon']!
+const salmonOpts = { ...salmon }
+
 const themes = [
   { suffix: 'tufte-light', opts: tufteOpts },
   { suffix: 'zinc-light', opts: {} },
+  { suffix: 'salmon', opts: salmonOpts },
 ]
 
 let svgCount = 0
@@ -253,4 +257,4 @@ console.log('\nDiagram types:')
 for (const { name } of diagrams) {
   console.log(`  ${name}`)
 }
-console.log('\nThemes: tufte-light, zinc-light')
+console.log('\nThemes: tufte-light, zinc-light, salmon')

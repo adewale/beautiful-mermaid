@@ -57,6 +57,7 @@ const THEME_LABELS: Record<string, string> = {
   'solarized-light': 'Solarized',
   'solarized-dark': 'Solar Dark',
   'one-dark': 'One Dark',
+  'salmon': 'Salmon',
 }
 
 export interface GenerateHtmlOptions {
