@@ -37,10 +37,11 @@ function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] 
   const filled = useAscii ? '#' : '●'
   const empty = useAscii ? '.' : '○'
 
-  return [
+  const segments: StyledSegment[] = [
     { text: filled.repeat(score), role: 'arrow' },
     { text: empty.repeat(5 - score), role: 'border' },
-  ].filter(segment => segment.text.length > 0)
+  ]
+  return segments.filter(segment => segment.text.length > 0)
 }
 
 /**
