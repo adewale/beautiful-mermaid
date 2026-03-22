@@ -30,9 +30,9 @@ jobs:
 
       - name: Build samples site
         run: |
-          bun run index.ts
+          bun run new-diagrams.ts
           mkdir -p _site
-          mv index.html _site/
+          mv new-diagrams.html _site/index.html
           cp -r public/* _site/
 
       - name: Upload artifact
