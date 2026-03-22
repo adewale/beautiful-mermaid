@@ -59,7 +59,18 @@ const THEME_LABELS: Record<string, string> = {
   'one-dark': 'One Dark',
 }
 
-async function generateHtml(): Promise<string> {
+export interface GenerateHtmlOptions {
+  /** Filter to only these categories. If omitted, all categories are included. */
+  categories?: Set<string>
+  /** Override the page title. */
+  title?: string
+  /** Override the meta description. */
+  description?: string
+  /** Extra samples to append before filtering. */
+  extraSamples?: typeof samples
+}
+
+export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<string> {
   // Step 0: Create Shiki highlighter for mermaid syntax highlighting in source panels.
   // We use 'github-light' as the base theme — its hex colors get overridden by CSS
   // color-mix() rules derived from --t-fg / --t-bg so tokens adapt to any theme.
@@ -82,8 +93,15 @@ async function generateHtml(): Promise<string> {
   const bundleJs = await buildResult.outputs[0]!.text()
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
-  // Step 2: Build sample JSON (only serializable fields needed by client)
-  const samplesJson = JSON.stringify(samples.map(s => ({
+  // Step 2: Filter and build sample JSON
+  const allSamples = options.extraSamples
+    ? [...samples, ...options.extraSamples]
+    : samples
+  const filteredSamples = options.categories
+    ? allSamples.filter(s => options.categories!.has(s.category ?? 'Other'))
+    : allSamples
+
+  const samplesJson = JSON.stringify(filteredSamples.map(s => ({
     title: s.title,
     description: s.description,
     source: s.source,
@@ -93,7 +111,7 @@ async function generateHtml(): Promise<string> {
 
   // Step 3: Group samples by category for TOC (done at build time since it's static)
   const categories = new Map<string, number[]>()
-  samples.forEach((sample, i) => {
+  filteredSamples.forEach((sample, i) => {
     const cat = sample.category ?? 'Other'
     if (!categories.has(cat)) categories.set(cat, [])
     categories.get(cat)!.push(i)
@@ -124,7 +142,7 @@ async function generateHtml(): Promise<string> {
   }
 
   // Build mapping from original index to display number (excluding Hero samples)
-  const heroCount = samples.filter(s => s.category === 'Hero').length
+  const heroCount = filteredSamples.filter(s => s.category === 'Hero').length
   const displayNum = (i: number) => i + 1 - heroCount
 
   const tocSections = [...categories.entries()]
@@ -133,7 +151,7 @@ async function generateHtml(): Promise<string> {
     const badgeColor = categoryBadgeColors[cat] ?? '#71717a'
     const prefix = categoryPrefixes[cat]
     const items = indices.map(i => {
-      let title = samples[i]!.title
+      let title = filteredSamples[i]!.title
       // Strip the category prefix from the title since it's already under the category heading
       if (prefix && title.startsWith(prefix)) title = title.slice(prefix.length)
       return `<li><a href="#sample-${i}"><span class="toc-num">${displayNum(i)}.</span> ${escapeHtml(title)}</a></li>`
@@ -190,7 +208,7 @@ async function generateHtml(): Promise<string> {
   // (see https://github.com/shikijs/shiki/issues/973), so we wrap each source with
   // ```mermaid ... ``` and then strip those fence lines from the output HTML.
   // Source panels always use github-dark — Shiki's inline colors are used directly.
-  const highlightedSources = samples.map(sample => {
+  const highlightedSources = filteredSamples.map(sample => {
     const fenced = '```mermaid\n' + sample.source.trim() + '\n```'
     const html = highlighter.codeToHtml(fenced, {
       lang: 'mermaid',
@@ -212,7 +230,7 @@ async function generateHtml(): Promise<string> {
   const heroCards: string[] = []
   const regularCards: string[] = []
 
-  samples.forEach((sample, i) => {
+  filteredSamples.forEach((sample, i) => {
     const bg = sample.options?.bg ?? ''
     const isHero = sample.category === 'Hero'
 
@@ -265,8 +283,8 @@ async function generateHtml(): Promise<string> {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="theme-color-meta" content="#f9f9fa" />
-  <title>Beautiful Mermaid — Mermaid Rendering, Made Beautiful</title>
-  <meta name="description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Architecture, Sequence, Class, ER, and XY diagrams." />
+  <title>${escapeHtml(options.title ?? 'Beautiful Mermaid — Mermaid Rendering, Made Beautiful')}</title>
+  <meta name="description" content="${escapeHtml(options.description ?? 'Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Architecture, Sequence, Class, ER, and XY diagrams.')}" />
   <link rel="icon" type="image/svg+xml" href="/mermaid/favicon.svg" />
   <link rel="icon" type="image/x-icon" href="/mermaid/favicon.ico" />
   <link rel="apple-touch-icon" href="/mermaid/apple-touch-icon.png" />
@@ -1277,7 +1295,7 @@ async function generateHtml(): Promise<string> {
       </button>
     </div>
     <div class="hero-meta">
-      <p class="meta" id="total-timing">Rendering ${samples.length * 2} samples\u2026</p>
+      <p class="meta" id="total-timing">Rendering ${filteredSamples.length * 2} samples\u2026</p>
       <div class="meta">ASCII rendering based on <a href="https://github.com/AlexanderGrooff/mermaid-ascii" target="_blank" rel="noopener">Mermaid-ASCII</a></div>
       <div class="meta">Early preview — actively evolving</div>
     </div>
@@ -1852,10 +1870,12 @@ ${bundleJs}
 }
 
 // ============================================================================
-// Main
+// Main — only runs when this file is the entry point (not when imported)
 // ============================================================================
 
-const html = await generateHtml()
-const outPath = new URL('./index.html', import.meta.url).pathname
-await Bun.write(outPath, html)
-console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)
+if (import.meta.main) {
+  const html = await generateHtml()
+  const outPath = new URL('./index.html', import.meta.url).pathname
+  await Bun.write(outPath, html)
+  console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)
+}
