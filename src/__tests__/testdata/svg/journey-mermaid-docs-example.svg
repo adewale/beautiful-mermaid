@@ -1,36 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 604 446.6" width="604" height="446.6" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)" role="img" aria-roledescription="user journey" aria-labelledby="journey-2xft3g-title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 604 446.6" width="604" height="446.6" style="--bg:#FFFFFF;--fg:#27272A;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-2xft3g-title">
 <title id="journey-2xft3g-title">My working day</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
   }
 </style>
 <style>
-  .journey-title { fill: var(--_text); }
-  .journey-section-bg { fill: color-mix(in srgb, var(--_node-fill) 88%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-section-label { fill: var(--_text-sec); }
-  .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-task-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
-  .journey-task-text { fill: var(--_text); }
-  .journey-score-cell-filled { fill: var(--_arrow); stroke: var(--_arrow); stroke-width: 1; }
-  .journey-score-cell-empty { fill: color-mix(in srgb, var(--bg) 55%, var(--_node-fill)); stroke: color-mix(in srgb, var(--_node-stroke) 82%, var(--bg)); stroke-width: 1; }
-  .journey-actor-pill { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 22%, var(--bg)); stroke-width: 1; }
-  .journey-actor-text { fill: var(--_text-sec); }
+  .journey-title { fill: #27272A; }
+  .journey-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-label { fill: #7d7d7f; }
+  .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-task-accent { fill: #dedede; }
+  .journey-task-text { fill: #27272A; }
+  .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
+  .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
+  .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
+  .journey-actor-text { fill: #7d7d7f; }
 </style>
 <g class="journey-section" data-id="section-0" data-label="Go to work">
   <rect class="journey-section-bg" x="32" y="75.4" width="256" height="343.20000000000005" rx="0" ry="0" />
