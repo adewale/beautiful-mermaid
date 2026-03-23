@@ -58,6 +58,9 @@ const THEME_LABELS: Record<string, string> = {
   'solarized-dark': 'Solar Dark',
   'one-dark': 'One Dark',
   'salmon': 'Salmon',
+  'salmon-dark': 'Salmon Dark',
+  'tufte': 'Tufte',
+  'tufte-dark': 'Tufte Dark',
 }
 
 export interface GenerateHtmlOptions {
@@ -69,6 +72,8 @@ export interface GenerateHtmlOptions {
   description?: string
   /** Extra samples to append before filtering. */
   extraSamples?: typeof samples
+  /** Theme keys to show as inline pills (in addition to Default). If omitted, uses built-in defaults. */
+  visibleThemes?: Set<string>
 }
 
 export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<string> {
@@ -168,7 +173,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   // Step 3b: Build theme selector pills (build-time so we include swatches)
   // Only show Default, Dracula, and Solarized inline; rest go in "More" dropdown
-  const VISIBLE_THEMES = new Set(['dracula', 'solarized-light'])
+  const VISIBLE_THEMES = options.visibleThemes ?? new Set(['dracula', 'solarized-light'])
 
   function buildThemePill(key: string, colors: { bg: string; fg: string }, active = false): string {
     const isDark = parseInt(colors.bg.replace('#', '').slice(0, 2), 16) < 0x80
