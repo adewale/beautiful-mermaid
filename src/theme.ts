@@ -159,8 +159,8 @@ export const THEMES: Record<string, DiagramColors> = {
   },
   'salmon': {
     bg: '#FFFBF5', fg: '#521000',
-    line: '#EBD5C1', accent: '#FF4801', muted: '#85532E',
-    surface: '#FFFDFB', border: '#EBD5C1',
+    line: '#C9A88A', accent: '#FF4801', muted: '#85532E',
+    surface: '#FFFDFB', border: '#D4B89E',
   },
   'salmon-dark': {
     bg: '#1F1008', fg: '#F5DCC8',
