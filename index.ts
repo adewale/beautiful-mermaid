@@ -1435,6 +1435,11 @@ ${bundleJs}
           if (theme[prop]) svgEl.style.setProperty('--' + prop, theme[prop]);
           else svgEl.style.removeProperty('--' + prop);
         }
+        // Clear architecture-specific inline vars so CSS fallbacks activate
+        var archVars = ['--arch-group-fill', '--arch-group-stroke', '--arch-service-fill', '--arch-service-stroke'];
+        for (var k = 0; k < archVars.length; k++) {
+          svgEl.style.removeProperty(archVars[k]);
+        }
         // Recompute xychart series color vars from the new accent
         var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
         if (maxColor >= 0) {
