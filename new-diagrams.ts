@@ -163,6 +163,7 @@ const html = await generateHtml({
   title: 'Beautiful Mermaid — New Diagram Types',
   description: 'Architecture, Timeline, and Journey diagram showcase for beautiful-mermaid.',
   extraSamples,
+  visibleThemes: new Set(['tufte', 'tufte-dark', 'salmon', 'salmon-dark']),
 })
 
 const outPath = new URL('./new-diagrams.html', import.meta.url).pathname

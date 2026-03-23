@@ -1,6 +1,6 @@
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT } from '../styles.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 
@@ -35,11 +35,13 @@ export function renderSequenceSvg(
 
   // SVG root with CSS variables + style block + defs
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, colors.shadow))
   parts.push('<defs>')
 
   // Arrow marker definitions
   parts.push(arrowMarkerDefs())
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(shadowDefs)
   parts.push('</defs>')
 
   // 1. Block backgrounds (loop/alt/opt rectangles)

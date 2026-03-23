@@ -41,6 +41,11 @@ export interface DiagramColors {
   surface?: string
   /** Node/group stroke color → CSS variable --border */
   border?: string
+
+  // -- Optional visual effects --
+
+  /** Enable subtle drop shadows on node shapes. Default: false */
+  shadow?: boolean
 }
 
 // ============================================================================
@@ -152,6 +157,26 @@ export const THEMES: Record<string, DiagramColors> = {
     bg: '#282c34', fg: '#abb2bf',
     line: '#4b5263', accent: '#c678dd', muted: '#5c6370',
   },
+  'salmon': {
+    bg: '#FFFBF5', fg: '#521000',
+    line: '#C9A88A', accent: '#FF4801', muted: '#85532E',
+    surface: '#FFFDFB', border: '#D4B89E',
+  },
+  'salmon-dark': {
+    bg: '#1F1008', fg: '#F5DCC8',
+    line: '#6B4A2E', accent: '#FF6B35', muted: '#A07858',
+    surface: '#2A1810', border: '#5A3A22',
+  },
+  'tufte': {
+    bg: '#FFFFF8', fg: '#111111',
+    line: '#AAAAAA', accent: '#7A0000', muted: '#888888',
+    surface: '#F5F0E8', border: '#CCCCCC', shadow: true,
+  },
+  'tufte-dark': {
+    bg: '#1C1C1A', fg: '#E8E4DC',
+    line: '#666660', accent: '#C87070', muted: '#908880',
+    surface: '#2A2926', border: '#444440', shadow: true,
+  },
 } as const
 
 export type ThemeName = keyof typeof THEMES
@@ -229,13 +254,51 @@ export function fromShikiTheme(theme: ShikiThemeLike): DiagramColors {
 // ============================================================================
 
 /**
+ * SVG <filter> definition for subtle drop shadows on node shapes.
+ * Returns the filter element to include inside <defs>, or empty string
+ * when shadows are not enabled.
+ *
+ * The shadow uses a fixed dark color at very low opacity so it works
+ * on any light background. Dark themes should use a lighter base.
+ */
+export function buildShadowDefs(colors: DiagramColors): string {
+  if (!colors.shadow) return ''
+
+  // Detect dark theme by checking if bg luminance is low.
+  // Use a lighter shadow base for dark backgrounds so it's visible.
+  const isDark = isColorDark(colors.bg)
+  const floodColor = isDark ? '#ffffff' : '#000000'
+  const floodOpacity = isDark ? '0.12' : '0.08'
+
+  return (
+    `  <filter id="bm-shadow" x="-12%" y="-10%" width="128%" height="136%">` +
+    `\n    <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="${floodColor}" flood-opacity="${floodOpacity}" />` +
+    `\n  </filter>`
+  )
+}
+
+/**
+ * Rough luminance check for hex colors.
+ * Returns true if the color appears dark (luminance < 0.4).
+ */
+function isColorDark(color: string): boolean {
+  const hex = color.replace('#', '')
+  if (hex.length < 6) return false
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  // Relative luminance approximation
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.4
+}
+
+/**
  * Build the CSS variable derivation rules for the SVG <style> block.
  *
  * When an optional variable (--line, --accent, etc.) is set on the SVG or
  * a parent element, it's used directly. When unset, the fallback computes
  * a blended value from --fg and --bg using color-mix().
  */
-export function buildStyleBlock(font: string, hasMonoFont: boolean): string {
+export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean): string {
   const fontImports = [
     `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`,
     ...(hasMonoFont
@@ -260,13 +323,18 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean): string {
     --_inner-stroke:  color-mix(in srgb, var(--fg) ${MIX.innerStroke}%, var(--bg));
     --_key-badge:     color-mix(in srgb, var(--fg) ${MIX.keyBadge}%, var(--bg));`
 
+  // Shadow CSS — applies drop shadow to node/box groups when enabled
+  const shadowRules = shadow
+    ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }'
+    : ''
+
   return [
     '<style>',
     `  ${fontImports.join('\n  ')}`,
     `  text { font-family: '${font}', system-ui, sans-serif; }`,
     ...(hasMonoFont ? [`  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }`] : []),
     `  svg {${derivedVars}`,
-    `  }`,
+    `  }${shadowRules}`,
     '</style>',
   ].join('\n')
 }
@@ -315,6 +383,191 @@ export function svgOpenTag(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
     `width="${overrides?.width ?? width}" height="${overrides?.height ?? height}" style="${style}"${attrBlock}>`
   )
+}
+
+// ============================================================================
+// Color resolution — pre-compute concrete hex values for non-browser renderers
+//
+// The CSS variable system (var(--_xxx), color-mix()) works in browsers but
+// fails in non-browser SVG renderers like resvg. These functions resolve all
+// derived colors to hex and inline them into the SVG string, making it render
+// correctly everywhere.
+// ============================================================================
+
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  const full = h.length === 3
+    ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
+    : h
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ]
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b]
+    .map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function mixHex(color1: string, color2: string, pct1: number): string {
+  const [r1, g1, b1] = parseHex(color1)
+  const [r2, g2, b2] = parseHex(color2)
+  const p = pct1 / 100
+  return toHex(
+    r1 * p + r2 * (1 - p),
+    g1 * p + g2 * (1 - p),
+    b1 * p + b2 * (1 - p),
+  )
+}
+
+function isHexColor(s: string): boolean {
+  return /^#[0-9a-fA-F]{3,8}$/.test(s)
+}
+
+/**
+ * All derived diagram colors resolved to concrete hex values.
+ * Mirrors the CSS variable derivation system in buildStyleBlock().
+ */
+export interface ResolvedColors {
+  bg: string
+  fg: string
+  text: string
+  textSec: string
+  textMuted: string
+  textFaint: string
+  line: string
+  arrow: string
+  nodeFill: string
+  nodeStroke: string
+  groupFill: string
+  groupHdr: string
+  innerStroke: string
+  keyBadge: string
+}
+
+/**
+ * Resolve all derived colors from a DiagramColors to concrete hex values.
+ * Implements the same logic as the CSS color-mix() derivations in buildStyleBlock().
+ */
+export function resolveColors(colors: DiagramColors): ResolvedColors {
+  const { bg, fg } = colors
+  return {
+    bg,
+    fg,
+    text: fg,
+    textSec: colors.muted ?? mixHex(fg, bg, MIX.textSec),
+    textMuted: colors.muted ?? mixHex(fg, bg, MIX.textMuted),
+    textFaint: mixHex(fg, bg, MIX.textFaint),
+    line: colors.line ?? mixHex(fg, bg, MIX.line),
+    arrow: colors.accent ?? mixHex(fg, bg, MIX.arrow),
+    nodeFill: colors.surface ?? mixHex(fg, bg, MIX.nodeFill),
+    nodeStroke: colors.border ?? mixHex(fg, bg, MIX.nodeStroke),
+    groupFill: bg,
+    groupHdr: mixHex(fg, bg, MIX.groupHeader),
+    innerStroke: mixHex(fg, bg, MIX.innerStroke),
+    keyBadge: mixHex(fg, bg, MIX.keyBadge),
+  }
+}
+
+/**
+ * Resolve all CSS var() and color-mix() expressions in an SVG string to
+ * concrete hex color values. This makes the SVG render correctly in
+ * non-browser renderers (resvg, librsvg, etc.) that don't support CSS
+ * custom properties or color-mix().
+ *
+ * Operates via iterative string replacement:
+ *   1. Replace var(--name) with known resolved values
+ *   2. Replace var(--name, fallback) — use value if known, else fallback
+ *   3. Resolve color-mix(in srgb, #hex P%, #hex) to computed hex
+ *   4. Extract CSS variable definitions from <style> and resolve remaining refs
+ *   5. Repeat until stable
+ *
+ * When bg/fg are not hex colors (e.g. CSS variable strings for live theming),
+ * the SVG is returned as-is since resolution isn't possible.
+ */
+export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
+  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return svg
+
+  const rc = resolveColors(colors)
+
+  // Build mapping of CSS variable names → resolved hex values
+  const vars = new Map<string, string>()
+  // User-facing variables
+  vars.set('bg', rc.bg)
+  vars.set('fg', rc.fg)
+  if (colors.line && isHexColor(colors.line)) vars.set('line', colors.line)
+  if (colors.accent && isHexColor(colors.accent)) vars.set('accent', colors.accent)
+  if (colors.muted && isHexColor(colors.muted)) vars.set('muted', colors.muted)
+  if (colors.surface && isHexColor(colors.surface)) vars.set('surface', colors.surface)
+  if (colors.border && isHexColor(colors.border)) vars.set('border', colors.border)
+  // Derived internal variables
+  vars.set('_text', rc.text)
+  vars.set('_text-sec', rc.textSec)
+  vars.set('_text-muted', rc.textMuted)
+  vars.set('_text-faint', rc.textFaint)
+  vars.set('_line', rc.line)
+  vars.set('_arrow', rc.arrow)
+  vars.set('_node-fill', rc.nodeFill)
+  vars.set('_node-stroke', rc.nodeStroke)
+  vars.set('_group-fill', rc.groupFill)
+  vars.set('_group-hdr', rc.groupHdr)
+  vars.set('_inner-stroke', rc.innerStroke)
+  vars.set('_key-badge', rc.keyBadge)
+
+  let text = svg
+
+  // Phase 1: Iteratively resolve var() and color-mix() from innermost outward
+  for (let pass = 0; pass < 10; pass++) {
+    const prev = text
+
+    // Replace var(--name) without fallback
+    text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+      return vars.get(name) ?? match
+    })
+
+    // Replace var(--name, fallback) where fallback has no nested parens
+    text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (_match, name, fallback) => {
+      return vars.get(name) ?? fallback.trim()
+    })
+
+    // Resolve color-mix(in srgb, #hex P%, #hex|transparent)
+    text = text.replace(
+      /color-mix\(in srgb,\s*(#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-fA-F]{3,8}|transparent)\)/g,
+      (_match, c1, pct, c2) => {
+        const cc2 = c2 === 'transparent' ? rc.bg : c2
+        return mixHex(c1, cc2, parseFloat(pct))
+      },
+    )
+
+    if (text === prev) break
+  }
+
+  // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
+  // any remaining var() references (e.g. --xychart-color-0 defined in style)
+  const cssDefs = new Map<string, string>()
+  const defRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
+  let defMatch
+  while ((defMatch = defRegex.exec(text)) !== null) {
+    cssDefs.set(defMatch[1]!, defMatch[2]!)
+  }
+
+  if (cssDefs.size > 0) {
+    for (let pass = 0; pass < 5; pass++) {
+      const prev = text
+      text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+        return cssDefs.get(name) ?? match
+      })
+      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (_match, name, fallback) => {
+        return cssDefs.get(name) ?? fallback.trim()
+      })
+      if (text === prev) break
+    }
+  }
+
+  return text
 }
 
 function isSvgOpenTagOverrides(

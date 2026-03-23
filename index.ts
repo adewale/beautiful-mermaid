@@ -57,6 +57,10 @@ const THEME_LABELS: Record<string, string> = {
   'solarized-light': 'Solarized',
   'solarized-dark': 'Solar Dark',
   'one-dark': 'One Dark',
+  'salmon': 'Salmon',
+  'salmon-dark': 'Salmon Dark',
+  'tufte': 'Tufte',
+  'tufte-dark': 'Tufte Dark',
 }
 
 export interface GenerateHtmlOptions {
@@ -68,6 +72,8 @@ export interface GenerateHtmlOptions {
   description?: string
   /** Extra samples to append before filtering. */
   extraSamples?: typeof samples
+  /** Theme keys to show as inline pills (in addition to Default). If omitted, uses built-in defaults. */
+  visibleThemes?: Set<string>
 }
 
 export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<string> {
@@ -167,7 +173,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   // Step 3b: Build theme selector pills (build-time so we include swatches)
   // Only show Default, Dracula, and Solarized inline; rest go in "More" dropdown
-  const VISIBLE_THEMES = new Set(['dracula', 'solarized-light'])
+  const VISIBLE_THEMES = options.visibleThemes ?? new Set(['dracula', 'solarized-light'])
 
   function buildThemePill(key: string, colors: { bg: string; fg: string }, active = false): string {
     const isDark = parseInt(colors.bg.replace('#', '').slice(0, 2), 16) < 0x80
@@ -1331,6 +1337,8 @@ ${bundleJs}
   // Stores each SVG element's original inline style attribute (from initial render)
   // so we can restore per-sample colors when switching back to "Default".
   var originalSvgStyles = [];
+  // Stores original timeline family element styles for Default restoration.
+  var originalFamilyStyles = [];
 
   function hexToRgb(hex) {
     if (!hex || typeof hex !== 'string') return null;
@@ -1429,6 +1437,16 @@ ${bundleJs}
           if (theme[prop]) svgEl.style.setProperty('--' + prop, theme[prop]);
           else svgEl.style.removeProperty('--' + prop);
         }
+        // Clear architecture-specific inline vars so CSS fallbacks activate
+        var archVars = ['--arch-group-fill', '--arch-group-stroke', '--arch-service-fill', '--arch-service-stroke'];
+        for (var k = 0; k < archVars.length; k++) {
+          svgEl.style.removeProperty(archVars[k]);
+        }
+        // Clear timeline per-family inline vars on nested <g> elements
+        var tlFamilyEls = svgEl.querySelectorAll('[data-family]');
+        for (var t = 0; t < tlFamilyEls.length; t++) {
+          tlFamilyEls[t].removeAttribute('style');
+        }
         // Recompute xychart series color vars from the new accent
         var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
         if (maxColor >= 0) {
@@ -1442,6 +1460,13 @@ ${bundleJs}
         // Restore original inline style from initial render
         if (originalSvgStyles[j] !== undefined) {
           svgEl.setAttribute('style', originalSvgStyles[j]);
+        }
+        // Restore timeline family element styles
+        if (originalFamilyStyles[j]) {
+          var familyEls = svgEl.querySelectorAll('[data-family]');
+          for (var t = 0; t < familyEls.length && t < originalFamilyStyles[j].length; t++) {
+            familyEls[t].setAttribute('style', originalFamilyStyles[j][t]);
+          }
         }
       }
     }
@@ -1661,6 +1686,13 @@ ${bundleJs}
       var svgEl = svgContainer.querySelector('svg');
       if (svgEl) {
         originalSvgStyles.push(svgEl.getAttribute('style') || '');
+        // Store timeline family styles
+        var familyEls = svgEl.querySelectorAll('[data-family]');
+        var familyArr = [];
+        for (var t = 0; t < familyEls.length; t++) {
+          familyArr.push(familyEls[t].getAttribute('style') || '');
+        }
+        originalFamilyStyles.push(familyArr);
 
         // If a global theme is active, immediately override the SVG's variables
         if (savedTheme && THEMES[savedTheme]) {
@@ -1684,6 +1716,7 @@ ${bundleJs}
         }
       } else {
         originalSvgStyles.push('');
+        originalFamilyStyles.push([]);
       }
 
       // Set panel background to match the SVG (skip for hero panels - keep transparent)
@@ -1699,6 +1732,7 @@ ${bundleJs}
     } catch (err) {
       svgContainer.innerHTML = '<div class="render-error">SVG Error: ' + escapeHtml(String(err)) + '</div>';
       originalSvgStyles.push('');
+      originalFamilyStyles.push([]);
     }
 
     // Hero samples don't have ASCII panels
