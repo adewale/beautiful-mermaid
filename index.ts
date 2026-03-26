@@ -624,8 +624,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       height: 14px;
       flex-shrink: 0;
     }
-    /* Hide contents button on smaller screens */
-    @media (max-width: 1024px) {
+    /* Hide contents button before it collides with theme pills */
+    @media (max-width: 1200px) {
       .contents-btn,
       .mega-menu {
         display: none !important;
