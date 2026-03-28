@@ -12,6 +12,7 @@ import {
 import { diagramColorsToAsciiTheme } from '../ascii/ansi.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
 import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 
 const NUM_RUNS = 200
 
@@ -115,7 +116,7 @@ describe('resolveArchitectureVisualConfig produces finite metrics', () => {
       fontSize: fc.option(fontSizeArb, { nil: undefined }),
       iconSize: fc.option(iconSizeArb, { nil: undefined }),
     }).map(({ fontSize, iconSize }) => {
-      const map: Record<string, unknown> = {}
+      const map: MermaidFrontmatterMap = {}
       if (fontSize !== undefined) {
         map['architecture'] = { fontSize, iconSize: iconSize ?? undefined }
       } else if (iconSize !== undefined) {

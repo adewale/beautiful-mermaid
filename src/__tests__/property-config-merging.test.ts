@@ -81,7 +81,7 @@ function collectLeaves(map: MermaidFrontmatterMap): MermaidConfigValue[] {
 }
 
 /** Check that a value is a valid scalar (string, number, boolean, null). */
-function isScalar(value: unknown): boolean {
+function isScalar(value: unknown): value is MermaidFrontmatterScalar {
   return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
 }
 

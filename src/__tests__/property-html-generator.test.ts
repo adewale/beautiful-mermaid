@@ -53,7 +53,7 @@ describe('HTML generator: property-based invariants', () => {
   // -- Arbitrary: random non-empty subset of real categories ----------------
   const categorySubsetArb = fc
     .subarray([...ALL_CATEGORIES], { minLength: 1 })
-    .map(arr => new Set(arr))
+    .map(arr => new Set<string>(arr))
 
   // ---- Test 2: Category filter produces correct sample count ----------------
   it('category filter yields correct number of sample sections', async () => {

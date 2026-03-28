@@ -24,11 +24,11 @@
       "beautiful-mermaid": ["./src/index.ts"],
       "beautiful-mermaid/*": ["./src/*"]
     },
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "index.ts", "samples-data.ts"],
   "exclude": ["node_modules", "dist"]
 }
