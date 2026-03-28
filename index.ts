@@ -1421,53 +1421,14 @@ ${bundleJs}
     setShadowVars(theme);
     updateThemeColor(theme ? theme.fg : '#27272A', theme ? theme.bg : '#FFFFFF');
 
-    // 2. Update all rendered SVG elements' CSS variables
+    // 2. Instant bg/fg update on existing SVGs (provides immediate visual feedback
+    //    while the full re-render in step 4 runs asynchronously)
     var svgs = document.querySelectorAll('.svg-container svg');
     for (var j = 0; j < svgs.length; j++) {
       var svgEl = svgs[j];
       if (theme) {
-        // Override with the global theme colors
         svgEl.style.setProperty('--bg', theme.bg);
         svgEl.style.setProperty('--fg', theme.fg);
-        // Set enrichment variables if provided, else remove so SVG
-        // internal color-mix() fallbacks activate
-        var enrichment = ['line', 'accent', 'muted', 'surface', 'border'];
-        for (var k = 0; k < enrichment.length; k++) {
-          var prop = enrichment[k];
-          if (theme[prop]) svgEl.style.setProperty('--' + prop, theme[prop]);
-          else svgEl.style.removeProperty('--' + prop);
-        }
-        // Clear architecture-specific inline vars so CSS fallbacks activate
-        var archVars = ['--arch-group-fill', '--arch-group-stroke', '--arch-service-fill', '--arch-service-stroke'];
-        for (var k = 0; k < archVars.length; k++) {
-          svgEl.style.removeProperty(archVars[k]);
-        }
-        // Clear timeline per-family inline vars on nested <g> elements
-        var tlFamilyEls = svgEl.querySelectorAll('[data-family]');
-        for (var t = 0; t < tlFamilyEls.length; t++) {
-          tlFamilyEls[t].removeAttribute('style');
-        }
-        // Recompute xychart series color vars from the new accent
-        var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
-        if (maxColor >= 0) {
-          var accent = theme.accent || CHART_ACCENT_FALLBACK;
-          svgEl.style.setProperty('--xychart-color-0', accent);
-          for (var ci = 1; ci <= maxColor; ci++) {
-            svgEl.style.setProperty('--xychart-color-' + ci, getSeriesColor(ci, accent, theme.bg));
-          }
-        }
-      } else {
-        // Restore original inline style from initial render
-        if (originalSvgStyles[j] !== undefined) {
-          svgEl.setAttribute('style', originalSvgStyles[j]);
-        }
-        // Restore timeline family element styles
-        if (originalFamilyStyles[j]) {
-          var familyEls = svgEl.querySelectorAll('[data-family]');
-          for (var t = 0; t < familyEls.length && t < originalFamilyStyles[j].length; t++) {
-            familyEls[t].setAttribute('style', originalFamilyStyles[j][t]);
-          }
-        }
       }
     }
 
@@ -1486,7 +1447,34 @@ ${bundleJs}
       }
     }
 
-    // 4. Re-render ASCII panels with new theme colors
+    // 4. Re-render all SVGs with theme colors so derived CSS vars resolve correctly.
+    // CSS custom properties set on the <svg> inline style don't cascade into the
+    // SVG's embedded <style> block in all browsers, so we must re-render.
+    (async function() {
+      for (var j = 0; j < samples.length; j++) {
+        var svgContainer = document.getElementById('svg-' + j);
+        if (!svgContainer) continue;
+        var opts = theme
+          ? { bg: theme.bg, fg: theme.fg, line: theme.line, accent: theme.accent, muted: theme.muted, surface: theme.surface, border: theme.border }
+          : samples[j].options;
+        try {
+          var svg = await renderMermaid(samples[j].source, opts || {});
+          svgContainer.innerHTML = svg;
+          var svgEl = svgContainer.querySelector('svg');
+          if (svgEl && !theme) {
+            originalSvgStyles[j] = svgEl.getAttribute('style') || '';
+            var familyEls = svgEl.querySelectorAll('[data-family]');
+            var familyArr = [];
+            for (var t = 0; t < familyEls.length; t++) {
+              familyArr.push(familyEls[t].getAttribute('style') || '');
+            }
+            originalFamilyStyles[j] = familyArr;
+          }
+        } catch (e) { /* keep existing */ }
+      }
+    })();
+
+    // 5. Re-render ASCII panels with new theme colors
     var asciiTheme = theme ? diagramColorsToAsciiTheme(theme) : null;
     for (var j = 0; j < samples.length; j++) {
       var asciiEl = document.getElementById('ascii-' + j);
