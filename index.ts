@@ -1248,7 +1248,6 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 <body>
   <!-- Safari 26+ reads title bar color from the topmost fixed element's background.
        This invisible 1px div provides a real DOM element for Safari to detect. -->
-  <div id="safari-theme-color" style="position:fixed;top:0;left:0;right:0;height:1px;background:var(--theme-bar-bg);z-index:9999;pointer-events:none;"></div>
 
   <!-- Navigation + theme bar -->
   <div class="theme-bar" id="theme-bar">
@@ -1332,13 +1331,6 @@ ${bundleJs}
 
   var totalTimingEl = document.getElementById('total-timing');
 
-  // -- Theme state --
-  // Stores each SVG element's original inline style attribute (from initial render)
-  // so we can restore per-sample colors when switching back to "Default".
-  var originalSvgStyles = [];
-  // Stores original timeline family element styles for Default restoration.
-  var originalFamilyStyles = [];
-
   function hexToRgb(hex) {
     if (!hex || typeof hex !== 'string') return null;
     var value = hex.trim();
@@ -1373,41 +1365,43 @@ ${bundleJs}
     body.style.setProperty('--shadow-blur-opacity', darkMode ? '0.12' : '0.06');
   }
 
-  // Update <meta name="theme-color"> so Safari 26+ title bar matches the page.
-  // Computes color-mix(in srgb, fg 4%, bg) in JS since browsers may not
-  // reliably re-evaluate CSS color-mix() for the meta tag.
+  // Update <meta name="theme-color"> and --theme-bar-bg so the browser
+  // title bar and scroll-fade gradients match the active theme.
   function updateThemeColor(fg, bg) {
     var fgRgb = hexToRgb(fg) || { r: 39, g: 39, b: 42 };
     var bgRgb = hexToRgb(bg) || { r: 255, g: 255, b: 255 };
-    // Mix: 4% foreground, 96% background (matches body CSS)
     var r = Math.round(bgRgb.r * 0.96 + fgRgb.r * 0.04);
     var g = Math.round(bgRgb.g * 0.96 + fgRgb.g * 0.04);
     var b = Math.round(bgRgb.b * 0.96 + fgRgb.b * 0.04);
     var hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     document.getElementById('theme-color-meta').setAttribute('content', hex);
-    // Update --theme-bar-bg on body so gradients update instantly
     document.body.style.setProperty('--theme-bar-bg', hex);
-    // Force Safari 26+ to re-read title bar color by updating the invisible fixed div
-    // and triggering a reflow (display toggle + offsetHeight read)
-    var safariDiv = document.getElementById('safari-theme-color');
-    safariDiv.style.background = hex;
-    safariDiv.style.display = 'none';
-    void safariDiv.offsetHeight;
-    safariDiv.style.display = '';
   }
 
-  // ----------------------------------------------------------------
-  // Apply a named theme (or '' for Default) to the entire page.
-  //
-  // This is instant — no re-rendering needed. SVGs use CSS custom
-  // properties internally, so updating --bg/--fg on the <svg> tag
-  // re-paints all nodes, edges, text, and backgrounds via color-mix().
-  // ----------------------------------------------------------------
-  function applyTheme(themeKey) {
+  // Apply theme colors to an SVG element's CSS variables.
+  function applySvgThemeVars(svgEl, theme) {
+    svgEl.style.setProperty('--bg', theme.bg);
+    svgEl.style.setProperty('--fg', theme.fg);
+    var props = ['line', 'accent', 'muted', 'surface', 'border'];
+    for (var k = 0; k < props.length; k++) {
+      if (theme[props[k]]) svgEl.style.setProperty('--' + props[k], theme[props[k]]);
+      else svgEl.style.removeProperty('--' + props[k]);
+    }
+    var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
+    if (maxColor >= 0) {
+      var accent = theme.accent || CHART_ACCENT_FALLBACK;
+      svgEl.style.setProperty('--xychart-color-0', accent);
+      for (var ci = 1; ci <= maxColor; ci++) {
+        svgEl.style.setProperty('--xychart-color-' + ci, getSeriesColor(ci, accent, theme.bg));
+      }
+    }
+  }
+
+  // Set page-level CSS variables, pills, and localStorage — no re-rendering.
+  function applyPageTheme(themeKey) {
     var theme = themeKey ? THEMES[themeKey] : null;
     var body = document.body;
 
-    // 1. Update body CSS variables — the entire page derives from these
     if (theme) {
       body.style.setProperty('--t-bg', theme.bg);
       body.style.setProperty('--t-fg', theme.fg);
@@ -1420,35 +1414,37 @@ ${bundleJs}
     setShadowVars(theme);
     updateThemeColor(theme ? theme.fg : '#27272A', theme ? theme.bg : '#FFFFFF');
 
-    // 2. Instant bg/fg update on existing SVGs (provides immediate visual feedback
-    //    while the full re-render in step 4 runs asynchronously)
-    var svgs = document.querySelectorAll('.svg-container svg');
-    for (var j = 0; j < svgs.length; j++) {
-      var svgEl = svgs[j];
-      if (theme) {
-        svgEl.style.setProperty('--bg', theme.bg);
-        svgEl.style.setProperty('--fg', theme.fg);
-      }
+    var pills = document.querySelectorAll('.theme-pill');
+    for (var j = 0; j < pills.length; j++) {
+      var isActive = pills[j].getAttribute('data-theme') === themeKey;
+      pills[j].classList.toggle('active', isActive);
+      pills[j].classList.toggle('shadow-tinted', isActive);
     }
 
-    // 3. Update SVG panel backgrounds to match (skip hero panels - keep transparent)
+    if (themeKey) {
+      localStorage.setItem('mermaid-theme', themeKey);
+    } else {
+      localStorage.removeItem('mermaid-theme');
+    }
+  }
+
+  // Full theme switch: update page vars + re-render all diagrams.
+  function applyTheme(themeKey) {
+    var theme = themeKey ? THEMES[themeKey] : null;
+    applyPageTheme(themeKey);
+
+    // Update SVG panel backgrounds (skip hero panels — keep transparent)
     for (var j = 0; j < samples.length; j++) {
       var panel = document.getElementById('svg-panel-' + j);
-      if (!panel) continue;
-      // Skip hero panels - they stay transparent
-      if (panel.classList.contains('hero-diagram-panel')) continue;
+      if (!panel || panel.classList.contains('hero-diagram-panel')) continue;
       if (theme) {
         panel.style.background = theme.bg;
       } else {
-        // Default mode: use the per-sample bg (or clear for page default)
-        var sampleBg = panel.getAttribute('data-sample-bg');
-        panel.style.background = sampleBg || '';
+        panel.style.background = panel.getAttribute('data-sample-bg') || '';
       }
     }
 
-    // 4. Re-render all SVGs with theme colors so derived CSS vars resolve correctly.
-    // CSS custom properties set on the <svg> inline style don't cascade into the
-    // SVG's embedded <style> block in all browsers, so we must re-render.
+    // Re-render all SVGs with theme colors
     (async function() {
       for (var j = 0; j < samples.length; j++) {
         var svgContainer = document.getElementById('svg-' + j);
@@ -1459,21 +1455,11 @@ ${bundleJs}
         try {
           var svg = await renderMermaid(samples[j].source, opts || {});
           svgContainer.innerHTML = svg;
-          var svgEl = svgContainer.querySelector('svg');
-          if (svgEl && !theme) {
-            originalSvgStyles[j] = svgEl.getAttribute('style') || '';
-            var familyEls = svgEl.querySelectorAll('[data-family]');
-            var familyArr = [];
-            for (var t = 0; t < familyEls.length; t++) {
-              familyArr.push(familyEls[t].getAttribute('style') || '');
-            }
-            originalFamilyStyles[j] = familyArr;
-          }
         } catch (e) { /* keep existing */ }
       }
     })();
 
-    // 5. Re-render ASCII panels with new theme colors
+    // Re-render ASCII panels
     var asciiTheme = theme ? diagramColorsToAsciiTheme(theme) : null;
     for (var j = 0; j < samples.length; j++) {
       var asciiEl = document.getElementById('ascii-' + j);
@@ -1484,21 +1470,6 @@ ${bundleJs}
           asciiTheme ? { theme: asciiTheme } : {}
         );
       } catch (e) { /* keep existing content */ }
-    }
-
-    // 5. Update active pill
-    var pills = document.querySelectorAll('.theme-pill');
-    for (var j = 0; j < pills.length; j++) {
-      var isActive = pills[j].getAttribute('data-theme') === themeKey;
-      pills[j].classList.toggle('active', isActive);
-      pills[j].classList.toggle('shadow-tinted', isActive);
-    }
-
-    // 6. Persist selection
-    if (themeKey) {
-      localStorage.setItem('mermaid-theme', themeKey);
-    } else {
-      localStorage.removeItem('mermaid-theme');
     }
   }
 
@@ -1512,31 +1483,40 @@ ${bundleJs}
     if (dd && dd.classList.contains('open')) dd.classList.remove('open');
   });
 
-  // -- "More" themes dropdown (direct listener, same pattern as Contents) --
-  var moreBtn = document.getElementById('theme-more-btn');
-  var moreDropdown = document.getElementById('theme-more-dropdown');
-
-  if (moreBtn && moreDropdown) {
-    moreBtn.addEventListener('click', function(e) {
+  // -- Dropdown helper: open/close, outside-click, Escape --
+  function setupDropdown(btn, dropdown, wrapperSelectors, toggleBtnClasses) {
+    if (typeof toggleBtnClasses === 'undefined') toggleBtnClasses = true;
+    var selectors = typeof wrapperSelectors === 'string' ? [wrapperSelectors] : wrapperSelectors;
+    function close() {
+      dropdown.classList.remove('open');
+      if (toggleBtnClasses) {
+        btn.classList.remove('active');
+        btn.classList.remove('shadow-tinted');
+      }
+    }
+    btn.addEventListener('click', function(e) {
       e.stopPropagation();
-      moreDropdown.classList.toggle('open');
+      var isOpen = dropdown.classList.toggle('open');
+      if (toggleBtnClasses) {
+        btn.classList.toggle('active', isOpen);
+        btn.classList.toggle('shadow-tinted', isOpen);
+      }
     });
-
-    // Close on outside click
     document.addEventListener('click', function(e) {
-      if (!moreDropdown.classList.contains('open')) return;
-      if (!e.target.closest('.theme-more-wrapper')) {
-        moreDropdown.classList.remove('open');
+      if (!dropdown.classList.contains('open')) return;
+      for (var i = 0; i < selectors.length; i++) {
+        if (e.target.closest(selectors[i])) return;
       }
+      close();
     });
-
-    // Close on Escape
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && moreDropdown.classList.contains('open')) {
-        moreDropdown.classList.remove('open');
-      }
+      if (e.key === 'Escape' && dropdown.classList.contains('open')) close();
     });
   }
+
+  var moreBtn = document.getElementById('theme-more-btn');
+  var moreDropdown = document.getElementById('theme-more-dropdown');
+  if (moreBtn && moreDropdown) setupDropdown(moreBtn, moreDropdown, '.theme-more-wrapper', false);
 
   // -- Random theme button --
   var randomThemeBtn = document.getElementById('random-theme-btn');
@@ -1545,60 +1525,21 @@ ${bundleJs}
 
   if (randomThemeBtn) {
     randomThemeBtn.addEventListener('click', function() {
-      // Filter out the current theme so we never pick the same one
       var availableKeys = themeKeys.filter(function(k) { return k !== currentThemeKey; });
-      // Also include default ('') if not currently selected
       if (currentThemeKey !== '') availableKeys.push('');
-      // Pick a random theme
-      var randomIndex = Math.floor(Math.random() * availableKeys.length);
-      var newThemeKey = availableKeys[randomIndex];
+      var newThemeKey = availableKeys[Math.floor(Math.random() * availableKeys.length)];
       currentThemeKey = newThemeKey;
       applyTheme(newThemeKey);
     });
   }
 
-  // -- Brand dropdown --
   var brandBtn = document.getElementById('brand-badge-btn');
   var brandDropdown = document.getElementById('brand-dropdown');
+  if (brandBtn && brandDropdown) setupDropdown(brandBtn, brandDropdown, '.brand-badge-wrapper');
 
-  if (brandBtn && brandDropdown) {
-    brandBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var isOpen = brandDropdown.classList.toggle('open');
-      brandBtn.classList.toggle('active', isOpen);
-      brandBtn.classList.toggle('shadow-tinted', isOpen);
-    });
-
-    // Close on outside click
-    document.addEventListener('click', function(e) {
-      if (!brandDropdown.classList.contains('open')) return;
-      if (!e.target.closest('.brand-badge-wrapper')) {
-        brandDropdown.classList.remove('open');
-        brandBtn.classList.remove('active');
-        brandBtn.classList.remove('shadow-tinted');
-      }
-    });
-
-    // Close on Escape
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && brandDropdown.classList.contains('open')) {
-        brandDropdown.classList.remove('open');
-        brandBtn.classList.remove('active');
-        brandBtn.classList.remove('shadow-tinted');
-      }
-    });
-  }
-
-  // -- Mega menu (Contents dropdown) --
   var contentsBtn = document.getElementById('contents-btn');
   var megaMenu = document.getElementById('mega-menu');
-
-  contentsBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    var isOpen = megaMenu.classList.toggle('open');
-    contentsBtn.classList.toggle('active', isOpen);
-    contentsBtn.classList.toggle('shadow-tinted', isOpen);
-  });
+  setupDropdown(contentsBtn, megaMenu, ['.mega-menu', '.contents-btn']);
 
   // Close on clicking a ToC link (smooth scroll to target)
   megaMenu.addEventListener('click', function(e) {
@@ -1612,41 +1553,10 @@ ${bundleJs}
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  // Close on outside click
-  document.addEventListener('click', function(e) {
-    if (!megaMenu.classList.contains('open')) return;
-    if (!e.target.closest('.mega-menu') && !e.target.closest('.contents-btn')) {
-      megaMenu.classList.remove('open');
-      contentsBtn.classList.remove('active');
-      contentsBtn.classList.remove('shadow-tinted');
-    }
-  });
-
-  // Close on Escape
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && megaMenu.classList.contains('open')) {
-      megaMenu.classList.remove('open');
-      contentsBtn.classList.remove('active');
-      contentsBtn.classList.remove('shadow-tinted');
-    }
-  });
-
-  // -- Restore saved theme immediately (before rendering begins) --
+  // -- Restore saved theme (page-level only — diagrams haven't rendered yet) --
   var savedTheme = localStorage.getItem('mermaid-theme');
   if (savedTheme && THEMES[savedTheme]) {
-    // Apply page-level CSS variables right away to avoid flash
-    document.body.style.setProperty('--t-bg', THEMES[savedTheme].bg);
-    document.body.style.setProperty('--t-fg', THEMES[savedTheme].fg);
-    document.body.style.setProperty('--t-accent', THEMES[savedTheme].accent || '#3b82f6');
-    setShadowVars(THEMES[savedTheme]);
-    updateThemeColor(THEMES[savedTheme].fg, THEMES[savedTheme].bg);
-    // Mark the correct pill as active
-    var pills = document.querySelectorAll('.theme-pill');
-    for (var j = 0; j < pills.length; j++) {
-      var isActive = pills[j].getAttribute('data-theme') === savedTheme;
-      pills[j].classList.toggle('active', isActive);
-      pills[j].classList.toggle('shadow-tinted', isActive);
-    }
+    applyPageTheme(savedTheme);
   } else {
     setShadowVars(null);
   }
@@ -1676,39 +1586,9 @@ ${bundleJs}
 
       // Store the SVG's original inline style for Default mode restoration
       var svgEl = svgContainer.querySelector('svg');
-      if (svgEl) {
-        originalSvgStyles.push(svgEl.getAttribute('style') || '');
-        // Store timeline family styles
-        var familyEls = svgEl.querySelectorAll('[data-family]');
-        var familyArr = [];
-        for (var t = 0; t < familyEls.length; t++) {
-          familyArr.push(familyEls[t].getAttribute('style') || '');
-        }
-        originalFamilyStyles.push(familyArr);
-
-        // If a global theme is active, immediately override the SVG's variables
-        if (savedTheme && THEMES[savedTheme]) {
-          var th = THEMES[savedTheme];
-          svgEl.style.setProperty('--bg', th.bg);
-          svgEl.style.setProperty('--fg', th.fg);
-          var enrichment = ['line', 'accent', 'muted', 'surface', 'border'];
-          for (var k = 0; k < enrichment.length; k++) {
-            if (th[enrichment[k]]) svgEl.style.setProperty('--' + enrichment[k], th[enrichment[k]]);
-            else svgEl.style.removeProperty('--' + enrichment[k]);
-          }
-          // Recompute xychart series color vars from the saved theme's accent
-          var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
-          if (maxColor >= 0) {
-            var accent = th.accent || CHART_ACCENT_FALLBACK;
-            svgEl.style.setProperty('--xychart-color-0', accent);
-            for (var ci = 1; ci <= maxColor; ci++) {
-              svgEl.style.setProperty('--xychart-color-' + ci, getSeriesColor(ci, accent, th.bg));
-            }
-          }
-        }
-      } else {
-        originalSvgStyles.push('');
-        originalFamilyStyles.push([]);
+      // If a global theme is active, apply its colors to the SVG
+      if (svgEl && savedTheme && THEMES[savedTheme]) {
+        applySvgThemeVars(svgEl, THEMES[savedTheme]);
       }
 
       // Set panel background to match the SVG (skip for hero panels - keep transparent)
@@ -1723,8 +1603,6 @@ ${bundleJs}
       }
     } catch (err) {
       svgContainer.innerHTML = '<div class="render-error">SVG Error: ' + escapeHtml(String(err)) + '</div>';
-      originalSvgStyles.push('');
-      originalFamilyStyles.push([]);
     }
 
     // Hero samples don't have ASCII panels
@@ -1796,28 +1674,9 @@ ${bundleJs}
       var svg = await renderMermaid(source, samples[index].options);
       svgContainer.innerHTML = svg;
       var svgEl = svgContainer.querySelector('svg');
-      if (svgEl) {
-        originalSvgStyles[index] = svgEl.getAttribute('style') || '';
-        var activeTheme = localStorage.getItem('mermaid-theme');
-        if (activeTheme && THEMES[activeTheme]) {
-          var th = THEMES[activeTheme];
-          svgEl.style.setProperty('--bg', th.bg);
-          svgEl.style.setProperty('--fg', th.fg);
-          var enrichment = ['line', 'accent', 'muted', 'surface', 'border'];
-          for (var k = 0; k < enrichment.length; k++) {
-            if (th[enrichment[k]]) svgEl.style.setProperty('--' + enrichment[k], th[enrichment[k]]);
-            else svgEl.style.removeProperty('--' + enrichment[k]);
-          }
-          // Recompute xychart series color vars
-          var maxColor = parseInt(svgEl.getAttribute('data-xychart-colors') || '-1', 10);
-          if (maxColor >= 0) {
-            var accent = th.accent || CHART_ACCENT_FALLBACK;
-            svgEl.style.setProperty('--xychart-color-0', accent);
-            for (var ci = 1; ci <= maxColor; ci++) {
-              svgEl.style.setProperty('--xychart-color-' + ci, getSeriesColor(ci, accent, th.bg));
-            }
-          }
-        }
+      var activeTheme = localStorage.getItem('mermaid-theme');
+      if (svgEl && activeTheme && THEMES[activeTheme]) {
+        applySvgThemeVars(svgEl, THEMES[activeTheme]);
       }
     } catch (err) {
       svgContainer.innerHTML = '<div class="render-error">' + escapeHtml(String(err)) + '</div>';
