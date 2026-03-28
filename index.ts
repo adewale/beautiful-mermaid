@@ -308,35 +308,6 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script>
-    // Restore saved theme colors BEFORE first paint to prevent white flash.
-    (function() {
-      try {
-        var bg = localStorage.getItem('mermaid-theme-bg');
-        var fg = localStorage.getItem('mermaid-theme-fg');
-        if (bg && fg) {
-          var accent = localStorage.getItem('mermaid-theme-accent') || '#3b82f6';
-          var s = document.documentElement.style;
-          s.setProperty('--t-bg', bg);
-          s.setProperty('--t-fg', fg);
-          s.setProperty('--t-accent', accent);
-          var fR = parseInt(fg.slice(1,3),16), fG = parseInt(fg.slice(3,5),16), fB = parseInt(fg.slice(5,7),16);
-          var bR = parseInt(bg.slice(1,3),16), bG = parseInt(bg.slice(3,5),16), bB = parseInt(bg.slice(5,7),16);
-          var mR = Math.round(bR*0.96+fR*0.04), mG = Math.round(bG*0.96+fG*0.04), mB = Math.round(bB*0.96+fB*0.04);
-          s.setProperty('--theme-bar-bg', '#'+((1<<24)+(mR<<16)+(mG<<8)+mB).toString(16).slice(1));
-          var brightness = (bR*299+bG*587+bB*114)/1000;
-          var dark = brightness < 140;
-          var aR = parseInt(accent.slice(1,3),16)||59, aG = parseInt(accent.slice(3,5),16)||130, aB = parseInt(accent.slice(5,7),16)||246;
-          s.setProperty('--foreground-rgb', fR+', '+fG+', '+fB);
-          s.setProperty('--accent-rgb', aR+', '+aG+', '+aB);
-          s.setProperty('--shadow-border-opacity', dark ? '0.15' : '0.08');
-          s.setProperty('--shadow-blur-opacity', dark ? '0.12' : '0.06');
-          document.getElementById('theme-color-meta').setAttribute('content',
-            '#'+((1<<24)+(mR<<16)+(mG<<8)+mB).toString(16).slice(1));
-        }
-      } catch(e) {}
-    })();
-  </script>
   <style>
     /* -- Reset & base -- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -347,9 +318,9 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
      * --t-bg and --t-fg drive the entire page color scheme.
      * All other colors are derived via color-mix(). When a theme is
      * selected from the pill bar, JS updates these two variables on
-     * :root — and the whole page adapts instantly.
+     * <body> — and the whole page adapts instantly.
      * ----------------------------------------------------------------- */
-    :root {
+    body {
       --t-bg: #FFFFFF;
       --t-fg: #27272A;
       --t-accent: #3b82f6;
@@ -358,14 +329,12 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       --shadow-border-opacity: 0.08;
       --shadow-blur-opacity: 0.06;
       --theme-bar-bg: #f9f9fa;  /* Mixed bg for theme bar and top gradient — updated by JS on theme change */
-    }
-    body {
+
       font-family: 'Geist', system-ui, -apple-system, sans-serif;
       background: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
       color: var(--t-fg);
       line-height: 1.6;
       margin: 0;
-      transition: background 0.2s, color 0.2s;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
@@ -1388,7 +1357,7 @@ ${bundleJs}
   }
 
   function setShadowVars(theme) {
-    var root = document.documentElement;
+    var body = document.body;
     var fg = theme ? theme.fg : '#27272A';
     var bg = theme ? theme.bg : '#FFFFFF';
     var accent = theme ? (theme.accent || '#3b82f6') : '#3b82f6';
@@ -1398,10 +1367,10 @@ ${bundleJs}
     var brightness = (bgRgb.r * 299 + bgRgb.g * 587 + bgRgb.b * 114) / 1000;
     var darkMode = brightness < 140;
 
-    root.style.setProperty('--foreground-rgb', fgRgb.r + ', ' + fgRgb.g + ', ' + fgRgb.b);
-    root.style.setProperty('--accent-rgb', accentRgb.r + ', ' + accentRgb.g + ', ' + accentRgb.b);
-    root.style.setProperty('--shadow-border-opacity', darkMode ? '0.15' : '0.08');
-    root.style.setProperty('--shadow-blur-opacity', darkMode ? '0.12' : '0.06');
+    body.style.setProperty('--foreground-rgb', fgRgb.r + ', ' + fgRgb.g + ', ' + fgRgb.b);
+    body.style.setProperty('--accent-rgb', accentRgb.r + ', ' + accentRgb.g + ', ' + accentRgb.b);
+    body.style.setProperty('--shadow-border-opacity', darkMode ? '0.15' : '0.08');
+    body.style.setProperty('--shadow-blur-opacity', darkMode ? '0.12' : '0.06');
   }
 
   // Update <meta name="theme-color"> so Safari 26+ title bar matches the page.
@@ -1416,8 +1385,8 @@ ${bundleJs}
     var b = Math.round(bgRgb.b * 0.96 + fgRgb.b * 0.04);
     var hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     document.getElementById('theme-color-meta').setAttribute('content', hex);
-    // Update --theme-bar-bg on :root so gradients update instantly
-    document.documentElement.style.setProperty('--theme-bar-bg', hex);
+    // Update --theme-bar-bg on body so gradients update instantly
+    document.body.style.setProperty('--theme-bar-bg', hex);
     // Force Safari 26+ to re-read title bar color by updating the invisible fixed div
     // and triggering a reflow (display toggle + offsetHeight read)
     var safariDiv = document.getElementById('safari-theme-color');
@@ -1436,17 +1405,17 @@ ${bundleJs}
   // ----------------------------------------------------------------
   function applyTheme(themeKey) {
     var theme = themeKey ? THEMES[themeKey] : null;
-    var root = document.documentElement;
+    var body = document.body;
 
-    // 1. Update :root CSS variables — the entire page derives from these
+    // 1. Update body CSS variables — the entire page derives from these
     if (theme) {
-      root.style.setProperty('--t-bg', theme.bg);
-      root.style.setProperty('--t-fg', theme.fg);
-      root.style.setProperty('--t-accent', theme.accent || '#3b82f6');
+      body.style.setProperty('--t-bg', theme.bg);
+      body.style.setProperty('--t-fg', theme.fg);
+      body.style.setProperty('--t-accent', theme.accent || '#3b82f6');
     } else {
-      root.style.setProperty('--t-bg', '#FFFFFF');
-      root.style.setProperty('--t-fg', '#27272A');
-      root.style.setProperty('--t-accent', '#3b82f6');
+      body.style.setProperty('--t-bg', '#FFFFFF');
+      body.style.setProperty('--t-fg', '#27272A');
+      body.style.setProperty('--t-accent', '#3b82f6');
     }
     setShadowVars(theme);
     updateThemeColor(theme ? theme.fg : '#27272A', theme ? theme.bg : '#FFFFFF');
@@ -1525,18 +1494,11 @@ ${bundleJs}
       pills[j].classList.toggle('shadow-tinted', isActive);
     }
 
-    // 6. Persist selection (including raw colors so the <head> script can
-    //    restore them before first paint, preventing a white flash)
+    // 6. Persist selection
     if (themeKey) {
       localStorage.setItem('mermaid-theme', themeKey);
-      localStorage.setItem('mermaid-theme-bg', theme.bg);
-      localStorage.setItem('mermaid-theme-fg', theme.fg);
-      localStorage.setItem('mermaid-theme-accent', theme.accent || '#3b82f6');
     } else {
       localStorage.removeItem('mermaid-theme');
-      localStorage.removeItem('mermaid-theme-bg');
-      localStorage.removeItem('mermaid-theme-fg');
-      localStorage.removeItem('mermaid-theme-accent');
     }
   }
 
@@ -1673,9 +1635,9 @@ ${bundleJs}
   var savedTheme = localStorage.getItem('mermaid-theme');
   if (savedTheme && THEMES[savedTheme]) {
     // Apply page-level CSS variables right away to avoid flash
-    document.documentElement.style.setProperty('--t-bg', THEMES[savedTheme].bg);
-    document.documentElement.style.setProperty('--t-fg', THEMES[savedTheme].fg);
-    document.documentElement.style.setProperty('--t-accent', THEMES[savedTheme].accent || '#3b82f6');
+    document.body.style.setProperty('--t-bg', THEMES[savedTheme].bg);
+    document.body.style.setProperty('--t-fg', THEMES[savedTheme].fg);
+    document.body.style.setProperty('--t-accent', THEMES[savedTheme].accent || '#3b82f6');
     setShadowVars(THEMES[savedTheme]);
     updateThemeColor(THEMES[savedTheme].fg, THEMES[savedTheme].bg);
     // Mark the correct pill as active
@@ -1688,6 +1650,11 @@ ${bundleJs}
   } else {
     setShadowVars(null);
   }
+
+  // Enable smooth transitions for future theme switches (not on initial load)
+  requestAnimationFrame(function() {
+    document.body.style.transition = 'background 0.2s, color 0.2s';
+  });
 
   // ============================================================================
   // Progressive rendering — render each diagram sequentially
